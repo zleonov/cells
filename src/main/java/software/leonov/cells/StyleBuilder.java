@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -30,17 +30,15 @@ import com.google.common.base.Preconditions;
  *   import static org.apache.poi.ss.usermodel.IndexedColors.*;
  *   import static org.apache.poi.ss.usermodel.CellStyle.*;
  *
- *   final StyleBuilder builder = 
- *        new StyleBuilder(workbook)
- *          .setWrapText(true)
- *          .setBorder(BorderStyle.DASH_DOT);
+ *   final StyleBuilder builder = new StyleBuilder(workbook)
+ *                         .setWrapText(true)
+ *                         .setBorder(BorderStyle.DASH_DOT);
  *
  *   final CellStyle wrappedDashDotStyle = builder.build();
  *
- *   final CellStyle wrappedBorderThinStyle =
- *        builder
- *          .setBorder(BorderStyle.BORDER_THIN)
- *          .build();
+ *   final CellStyle wrappedBorderThinStyle = builder
+ *                        .setBorder(BorderStyle.BORDER_THIN)
+ *                        .build();
  * </pre>
  * 
  * Builder instances are reusable. It is safe to call {@link #build()} multiple times to obtain multiple

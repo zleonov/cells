@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder;
 

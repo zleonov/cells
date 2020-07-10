@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -21,7 +21,7 @@ public final class Columns {
      * @param ref the letter reference of the column
      * @return the 0-based index of the specified column
      */
-    public static int getIndex(final String ref) {
+    public static int get(final String ref) {
         checkNotNull(ref, "ref == null");
         return CellReference.convertColStringToIndex(ref);
     }
@@ -32,7 +32,7 @@ public final class Columns {
      * @param index the 0-based index of the column
      * @return the letter reference of the column index
      */
-    public static String getReference(final int index) {
+    public static String get(final int index) {
         checkArgument(index >= 0, "index < 0");
         return CellReference.convertNumToColString(index);
     }

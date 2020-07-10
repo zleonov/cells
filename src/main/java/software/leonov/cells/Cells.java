@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;

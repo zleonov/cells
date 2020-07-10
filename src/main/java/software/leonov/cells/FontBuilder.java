@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -21,7 +21,7 @@ import org.apache.poi.xssf.usermodel.XSSFFont;
  *   import static org.apache.poi.ss.usermodel.IndexedColors.*;
  *   import static org.apache.poi.ss.usermodel.Font.*;
  *   
- *   final FontBuilder builder = new FontBuilder(workbook).setUnderline(U_DOUBLE).setItalic(true);
+ *   final FontBuilder builder = new FontBuilder(workbook).setUnderline(DOUBLE).setItalic(true);
  *   
  *   final Font underlinedItalic     = builder.build();
  *   final Font underlinedItalicBold = builder.setBold(true).build();

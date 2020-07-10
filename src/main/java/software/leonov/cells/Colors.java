@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -83,7 +83,7 @@ public final class Colors {
      * @param hex the hexadecimal string to decode
      * @return a new {@code Color} represented by a hexadecimal string
      */
-    public static Color hex(final String hex) {
+    public static Color decode(final String hex) {
         checkNotNull(hex, "hex == null");
         return new XSSFColor(java.awt.Color.decode(hex), null);
     }

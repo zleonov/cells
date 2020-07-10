@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -50,14 +50,15 @@ public final class Rows {
     public static Cell getCell(final Row row, final String ref) {
         checkNotNull(row, "row == null");
         checkNotNull(ref, "ref == null");
-        return row.getCell(Columns.getIndex(ref));
+        return row.getCell(Columns.get(ref));
     }
 
     /**
      * Returns the specified cell. If the cell does not exist it is created.
      * <p>
-     * The cell-style will be inherited from the default column style. If the default column style is undefined it will be
-     * inherited from the default row style. If neither are defined it will have a {@link CellType#BLANK} style.
+     * The cell-style will be inherited from the default column style. If the default column style is undefined the
+     * cell-style will be inherited from the default row style. If neither are defined it will have a {@link CellType#BLANK}
+     * style.
      * 
      * @param row   the row where the cell is located
      * @param index the 0-based column index
@@ -92,7 +93,7 @@ public final class Rows {
     public static Cell getOrCreateCell(final Row row, final String ref) {
         checkNotNull(row, "row == null");
         checkNotNull(ref, "ref == null");
-        final int index = Columns.getIndex(ref);
+        final int index = Columns.get(ref);
         return getOrCreateCell(row, index);
     }
 

@@ -1,4 +1,4 @@
-package software.leonov.jcells;
+package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -60,7 +60,7 @@ final public class Sheets {
         checkNotNull(fromColumn, "fromColumn == null");
         checkNotNull(toRow, "toRow == null");
         checkNotNull(toColumn, "toColumn == null");
-        sheet.setAutoFilter(new CellRangeAddress(fromRow.getRowNum(), toRow.getRowNum(), Columns.getIndex(fromColumn), Columns.getIndex(toColumn)));
+        sheet.setAutoFilter(new CellRangeAddress(fromRow.getRowNum(), toRow.getRowNum(), Columns.get(fromColumn), Columns.get(toColumn)));
         return sheet;
     }
 
@@ -100,7 +100,7 @@ final public class Sheets {
     public static Sheet autoSizeColumn(final Sheet sheet, final String ref) {
         checkNotNull(sheet, "sheet == null");
         checkNotNull(ref, "ref == null");
-        sheet.autoSizeColumn(Columns.getIndex(ref));
+        sheet.autoSizeColumn(Columns.get(ref));
         return sheet;
     }
 
@@ -191,7 +191,7 @@ final public class Sheets {
     public static Sheet hideColumn(final Sheet sheet, final String ref) {
         checkNotNull(sheet, "sheet == null");
         checkNotNull(ref, "ref == null");
-        sheet.setColumnHidden(Columns.getIndex(ref), true);
+        sheet.setColumnHidden(Columns.get(ref), true);
         return sheet;
     }
 
@@ -245,7 +245,7 @@ final public class Sheets {
         checkNotNull(ref, "ref == null");
         checkNotNull(style, "style == null");
 
-        return setColumnStyle(sheet, Columns.getIndex(ref), style);
+        return setColumnStyle(sheet, Columns.get(ref), style);
     }
 
     /**
@@ -276,7 +276,7 @@ final public class Sheets {
         checkNotNull(sheet, "sheet == null");
         checkNotNull(ref, "ref == null");
         checkArgument(width > 0, "width <= 0");
-        sheet.setColumnWidth(Columns.getIndex(ref), width * 256);
+        sheet.setColumnWidth(Columns.get(ref), width * 256);
         return sheet;
     }
 
@@ -404,7 +404,7 @@ final public class Sheets {
     public static Sheet unhideColumn(final Sheet sheet, final String ref) {
         checkNotNull(sheet, "sheet == null");
         checkNotNull(ref, "ref == null");
-        sheet.setColumnHidden(Columns.getIndex(ref), false);
+        sheet.setColumnHidden(Columns.get(ref), false);
         return sheet;
     }
 

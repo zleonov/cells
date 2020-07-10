@@ -19,6 +19,13 @@
         <maven-source-plugin.version>3.0.0</maven-source-plugin.version>
     </properties>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
     <dependencies>
         <dependency>
             <groupId>software.leonov.common</groupId>
@@ -64,14 +71,14 @@
                 <version>${maven-javadoc-plugin.version}</version>
 
                 <configuration>
-                    <sourcepath>${project.build.sourceDirectory}:${java.src.path}:${guava.src.path}</sourcepath>
+                    <sourcepath>${project.build.sourceDirectory}</sourcepath>
                     <subpackages>software.leonov</subpackages>
                     <quiet>false</quiet>
                     <notimestamp>true</notimestamp>
                     <encoding>UTF-8</encoding>
                     <docencoding>UTF-8</docencoding>
                     <charset>UTF-8</charset>
-                    <show>protected</show>
+                    <show>public</show>
                     <doclint>-html</doclint>
                     <linksource>true</linksource>
                     <doctitle>
