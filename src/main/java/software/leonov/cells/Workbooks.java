@@ -412,7 +412,7 @@ final public class Workbooks {
      * @return the file extension <i>xls</i> or <i>xlsx</i> corresponding the specified workbook
      */
     public static String getFileExtension(final Workbook workbook) {
-        return workbook instanceof HSSFWorkbook ? ".xls" : ".xlsx";
+        return workbook instanceof HSSFWorkbook ? "xls" : "xlsx";
     }
 
 }
