@@ -17,6 +17,7 @@ import org.apache.poi.xssf.usermodel.XSSFColor;
  */
 public final class Colors {
 
+    public static final Color BLACK = HSSFColorPredefined.BLACK.getColor();
     public static final Color BROWN = HSSFColorPredefined.BROWN.getColor();
     public static final Color OLIVE_GREEN = HSSFColorPredefined.OLIVE_GREEN.getColor();
     public static final Color DARK_GREEN = HSSFColorPredefined.DARK_GREEN.getColor();

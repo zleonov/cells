@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -26,6 +28,8 @@ import com.google.common.io.MoreFiles;
  */
 final public class Workbooks {
 
+    private final static Logger logger = Logger.getLogger(Workbooks.class.getName());
+
     private Workbooks() {
     }
 
@@ -34,14 +38,14 @@ final public class Workbooks {
      */
     public enum Format {
         /**
-         * The <a target="_blank" href= "http://en.wikipedia.org/wiki/Microsoft_Excel#Binary">Excel Binary File Format</a>
-         * supported since Microsoft Office 2003.
+         * The <i>xls</i> <a target="_blank" href= "http://en.wikipedia.org/wiki/Microsoft_Excel#Binary">Excel Binary File
+         * Format</a> supported since Microsoft Office 2003.
          */
         BINARY,
 
         /**
-         * The <a target="_blank" href= "https://en.wikipedia.org/wiki/Office_Open_XML">Office Open XML</a> format supported
-         * starting with Microsoft Office 2007.
+         * The <i>xlsx</i> <a target="_blank" href= "https://en.wikipedia.org/wiki/Office_Open_XML">Office Open XML</a> format
+         * supported starting with Microsoft Office 2007.
          */
         OFFICE_OPEN_XML,
 
@@ -67,11 +71,14 @@ final public class Workbooks {
      * This method is a no-op for other {@link Workbook} implementations.
      * 
      * @param workbook the specified workbook
+     * @return {@code true} if the specified workbook is an {@code SXSSFWorkbook} and all temporary files were successfully
+     *         deleted
      */
-    public static void dispose(final Workbook workbook) {
+    public static boolean dispose(final Workbook workbook) {
         checkNotNull(workbook, "workbook == null");
         if (workbook instanceof SXSSFWorkbook)
-            ((SXSSFWorkbook) workbook).dispose();
+            return ((SXSSFWorkbook) workbook).dispose();
+        return false;
     }
 
     /**
@@ -204,13 +211,13 @@ final public class Workbooks {
      */
     public static Workbook newWorkbook(final Format format, final int nsheets) {
         checkNotNull(format, "format == null");
-        checkArgument(nsheets > 0, "nsheets < 1");
+        checkArgument(nsheets >= 0, "nsheets < 0");
         final Workbook workbook = format == Format.BINARY ? new HSSFWorkbook() : format == Format.OFFICE_OPEN_XML ? new XSSFWorkbook() : new SXSSFWorkbook();
-        // IntStream.range(1, nsheets + 1).forEach(i -> workbook.createSheet("Sheet" + i));
+        IntStream.range(1, nsheets + 1).forEach(i -> workbook.createSheet("Sheet" + i));
 
-//        if (nsheets > 0)
-//            workbook.setActiveSheet(0);
-        getOrCreateSheet(workbook, nsheets - 1);
+        if (nsheets > 0)
+            workbook.setActiveSheet(0);
+        // getOrCreateSheet(workbook, nsheets - 1);
 
         return workbook;
     }
@@ -328,18 +335,31 @@ final public class Workbooks {
     }
 
     /**
-     * Writes the given workbook to the specified path.
+     * Writes the given workbook to the specified path. Does not close the workbook.
      * 
      * @param workbook the given workbook
      * @param path     the specified path
      * @throws IOException if an I/O error occurs
      * @return the specified file
      */
-    public static Path saveAs(final Workbook workbook, final Path path) throws IOException {
+    public static Path save(final Workbook workbook, final Path path) throws IOException {
+        return save(workbook, path, false);
+    }
+
+    /**
+     * Writes the given workbook to the specified path.
+     * 
+     * @param workbook the given workbook
+     * @param path     the specified path
+     * @param close    whether or not to {@link Workbook#close() close} and {@link #dispose(Workbook) dispose} the workbook
+     * @throws IOException if an I/O error occurs
+     * @return the specified file
+     */
+    public static Path save(final Workbook workbook, final Path path, final boolean close) throws IOException {
         checkNotNull(workbook, "workbook == null");
         checkNotNull(path, "path == null");
         try (final OutputStream out = Files.newOutputStream(path)) { // do we want a buffered stream?
-            saveAs(workbook, out);
+            write(workbook, out, close);
         }
         return path;
     }
@@ -349,13 +369,50 @@ final public class Workbooks {
      * 
      * @param workbook the given workbook
      * @param out      the specified output stream
+     * @param close    whether or not to {@link Workbook#close() close} and {@link #dispose(Workbook) dispose} the workbook
      * @throws IOException if an I/O error occurs
      * @return the specified output stream
      */
-    public static <T extends OutputStream> T saveAs(final Workbook workbook, final T out) throws IOException {
+    public static <T extends OutputStream> T write(final Workbook workbook, final T out, final boolean close) throws IOException {
         checkNotNull(out, "out == null");
-        workbook.write(out);
+
+        IOException first = null;
+
+        try {
+            workbook.write(out);
+        } catch (final IOException e) {
+            first = e;
+        }
+
+        if (close) {
+            try {
+                workbook.close();
+            } catch (final IOException e) {
+                if (first == null)
+                    first = e;
+                else
+                    first.addSuppressed(e);
+            }
+        }
+
+        if (workbook instanceof SXSSFWorkbook && !dispose(workbook))
+            logger.log(Level.WARNING, "SXSSFWorkbook.dispose() failed");
+
+        if (first != null)
+            throw first;
+
         return out;
+    }
+
+    /**
+     * Returns the file extension <i>xls</i> or <i>xlsx</i> corresponding the specified workbook. The returned extension
+     * does not include the leading dot character.
+     * 
+     * @param workbook the specified workbook
+     * @return the file extension <i>xls</i> or <i>xlsx</i> corresponding the specified workbook
+     */
+    public static String getFileExtension(final Workbook workbook) {
+        return workbook instanceof HSSFWorkbook ? ".xls" : ".xlsx";
     }
 
 }

@@ -4,6 +4,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static software.leonov.common.base.Str.isWhitespace;
 
+import java.util.Optional;
+
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
@@ -259,5 +261,19 @@ public final class Rows {
     public static Iterable<Cell> skipBlankCells(final Row row) {
         checkNotNull(row, "row == null");
         return Iterables.filter(row, cell -> !isWhitespace(Cells.formatValue(cell)));
+    }
+
+    /**
+     * Returns the 1-based index of the last cell in the specified row or an empty {@code Optional} if the row has no
+     * defined cells.
+     * 
+     * @param row the specified row
+     * @return the 1-based index of the last cell in the specified row or an empty {@code Optional} if the row has no
+     *         defined cells
+     */
+    public static Optional<Integer> getLastCellIndex(final Row row) {
+        checkNotNull(row, "row == null");
+        final int i = row.getLastCellNum();
+        return i == -1 ? Optional.empty() : Optional.of(i);
     }
 }

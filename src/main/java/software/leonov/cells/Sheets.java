@@ -287,7 +287,7 @@ final public class Sheets {
      * @param height the height to set in points
      * @return the specified sheet
      */
-    public static Iterable<Row> setRowHeight(final Sheet sheet, final float height) {
+    public static Sheet setRowHeight(final Sheet sheet, final float height) {
         checkNotNull(sheet, "sheet == null");
         checkArgument(height > 0, "height < 1");
 
@@ -406,6 +406,18 @@ final public class Sheets {
         checkNotNull(ref, "ref == null");
         sheet.setColumnHidden(Columns.get(ref), false);
         return sheet;
+    }
+
+    /**
+     * Creates and returns the next available row in the specified sheet. Shorthand for
+     * {@code sheet.createRow(sheet.getLastRowNum() + 1)}.
+     * 
+     * @param sheet the specified sheet
+     * @return the next available row
+     */
+    public static Row createNextRow(final Sheet sheet) {
+        checkNotNull(sheet, "sheet == null");
+        return sheet.createRow(sheet.getLastRowNum() + 1); // does this work for row 0?
     }
 
 }
