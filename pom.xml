@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>software.leonov</groupId>
-    <artifactId>jcells</artifactId>
+    <artifactId>cells</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <!-- default packaging is a jar <packaging>jar</packaging> -->
 
