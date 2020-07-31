@@ -1,4 +1,4 @@
-package software.leonov.cells;
+package software.leonov.cells.util;
 
 import org.apache.poi.ss.usermodel.Font;
 

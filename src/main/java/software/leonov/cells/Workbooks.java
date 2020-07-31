@@ -85,9 +85,8 @@ final public class Workbooks {
      * Convenience method to get the active sheet from the specified workbook.
      * <p>
      * The active sheet is the sheet which is displayed when a Microsoft Excel workbook is opened.
-     * 
      * <p>
-     * If the workbook does not contain any sheets, <i>Sheet1</i> will be created.
+     * If the workbook does not contain any sheets then <i>Sheet1</i> will be created.
      * 
      * @param workbook the specified workbook
      * @return the active sheet from the specified workbook
@@ -102,7 +101,7 @@ final public class Workbooks {
     /**
      * Convenience method to get the first sheet from the specified workbook.
      * <p>
-     * If the workbook does not contain any sheets, <i>Sheet1</i> is created.
+     * If the workbook does not contain any sheets then <i>Sheet1</i> will be created.
      * 
      * @param workbook the specified workbook
      * @return the first sheet in the specified workbook
@@ -113,8 +112,8 @@ final public class Workbooks {
     }
 
     /**
-     * Returns the specified sheet from the workbook. If the number of sheets in the workbook is less than the given index,
-     * new sheets are created until the specified index is reached.
+     * Returns the specified sheet from the workbook. If the number of sheets in this workbook is less than the given index
+     * then new sheets will be created until the specified index is reached.
      * 
      * @param workbook the workbook
      * @param index    the 0-based index of the sheet to return
@@ -180,6 +179,9 @@ final public class Workbooks {
     /**
      * Creates a new {@code Workbook} with an empty sheet.
      * <p>
+     * Workbooks can be created in the classic {@link Format#BINARY Excel Binary File Format} {@code xls} format or the
+     * {@link Format#OFFICE_OPEN_XML Office Open XML} {@code xlsx} format.
+     * <p>
      * {@link Format#STREAMING_OFFICE_OPEN_XML Streaming Office Open XML} workbooks will be created using the default
      * settings. See {@link SXSSFWorkbook} and {@link SXSSFWorkbook#SXSSFWorkbook(XSSFWorkbook) new
      * SXSSFWorkbook(XSSFWorkbook)} for more information. Consider creating an {@link SXSSFWorkbook} manually if explicit
@@ -196,8 +198,8 @@ final public class Workbooks {
     /**
      * Creates a new {@code Workbook} and adds the specified number of empty sheets.
      * <p>
-     * Workbooks can be created in the classic {@link Format#BINARY Excel Binary File Format} {@code XLS} format or the
-     * {@link Format#OFFICE_OPEN_XML Office Open XML} {@code XLSX} format.
+     * Workbooks can be created in the classic {@link Format#BINARY Excel Binary File Format} {@code xls} format or the
+     * {@link Format#OFFICE_OPEN_XML Office Open XML} {@code xlsx} format.
      * <p>
      * {@link Format#STREAMING_OFFICE_OPEN_XML Streaming Office Open XML} workbooks will be created using the default
      * settings. See {@link SXSSFWorkbook} and {@link SXSSFWorkbook#SXSSFWorkbook(XSSFWorkbook) new
@@ -322,7 +324,7 @@ final public class Workbooks {
 //    }
 
     /**
-     * Removes a sheet from its workbook.
+     * Removes a sheet from this workbook.
      * 
      * @param sheet the sheet to remove
      * @return the workbook where the sheet was located

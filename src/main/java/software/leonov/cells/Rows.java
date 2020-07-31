@@ -12,6 +12,7 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellReference;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.collect.Iterables;
@@ -52,7 +53,7 @@ public final class Rows {
     public static Cell getCell(final Row row, final String ref) {
         checkNotNull(row, "row == null");
         checkNotNull(ref, "ref == null");
-        return row.getCell(Columns.get(ref));
+        return row.getCell(CellReference.convertColStringToIndex(ref));
     }
 
     /**
@@ -95,7 +96,7 @@ public final class Rows {
     public static Cell getOrCreateCell(final Row row, final String ref) {
         checkNotNull(row, "row == null");
         checkNotNull(ref, "ref == null");
-        final int index = Columns.get(ref);
+        final int index = CellReference.convertColStringToIndex(ref);
         return getOrCreateCell(row, index);
     }
 
@@ -104,7 +105,7 @@ public final class Rows {
      * exception.
      * 
      * @param row the specified row
-     * @return the workbook which contains the specified row
+     * @return the sheet which contains the specified row
      */
     public static Sheet getSheetOf(final Row row) {
         checkNotNull(row, "row == null");
@@ -244,6 +245,7 @@ public final class Rows {
      */
     public static Row setStyle(final Row row, final CellStyle style) {
         checkNotNull(row, "row == null");
+        checkNotNull(style, "style == null");
         Streams.stream(row).forEach(cell -> Cells.setStyle(cell, style));
         row.setRowStyle(style);
         return row;

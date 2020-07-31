@@ -1,9 +1,11 @@
-package software.leonov.cells;
+package software.leonov.cells.fluent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -15,54 +17,124 @@ import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.ss.util.CellUtil;
 import org.apache.poi.ss.util.WorkbookUtil;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Streams;
 
 /**
- * Static methods for working with {@link Sheet}s.
+ * A representation of a sheet in a Microsoft Excel workbook.
  * 
  * @author Zhenya Leonov
  */
-final public class Sheets {
+public final class FSheet implements Iterable<FRow> {
 
-    private Sheets() {
+    private static final Cache<Row, FRow> rows = CacheBuilder.newBuilder().maximumSize(1000).build();
+
+    private final FWorkbook fworkbook;
+    private final Sheet sheet;
+
+    FSheet(final FWorkbook fworkbook, final Sheet sheet) {
+        checkNotNull(fworkbook, "fworkbook == null");
+        checkNotNull(sheet, "sheet == null");
+        this.fworkbook = fworkbook;
+        this.sheet = sheet;
     }
 
-    /**
-     * Enables filtering for the given range of cells in the specified sheet.
-     * 
-     * @param sheet      the specified sheet
-     * @param fromRow    the first row
-     * @param fromColumn the 0-based index of the first column
-     * @param toRow      the last row
-     * @param toColumn   the 0-based index of the last column
-     * @return the specified sheet
-     */
-    public static Sheet autoFilter(final Sheet sheet, final Row fromRow, final int fromColumn, final Row toRow, final int toColumn) {
-        checkNotNull(sheet, "sheet == null");
-        checkNotNull(fromRow, "fromRow == null");
-        checkNotNull(toRow, "toRow == null");
-        sheet.setAutoFilter(new CellRangeAddress(fromRow.getRowNum(), toRow.getRowNum(), fromColumn, toColumn));
+    Sheet delegate() {
         return sheet;
     }
 
     /**
-     * Enables filtering for the given range of cells in the specified sheet.
+     * Copies the cell-style, cell-type, comment, and value from the source cell to the target cell. If the target cell
+     * contains a value it will be overwritten.
+     * <p>
+     * Note: Both cells must be located in the same workbook.
      * 
-     * @param sheet      the specified sheet
-     * @param fromRow    the first row
-     * @param fromColumn the letter reference of first column
-     * @param toRow      the last row
-     * @param toColumn   the letter reference of the last column
-     * @return the specified sheet
+     * @param from the source cell
+     * @param to   the target cell
+     * @return the target cell
      */
-    public static Sheet autoFilter(final Sheet sheet, final Row fromRow, final String fromColumn, final Row toRow, final String toColumn) {
-        checkNotNull(sheet, "sheet == null");
-        checkNotNull(fromRow, "fromRow == null");
-        checkNotNull(fromColumn, "fromColumn == null");
-        checkNotNull(toRow, "toRow == null");
-        checkNotNull(toColumn, "toColumn == null");
-        sheet.setAutoFilter(new CellRangeAddress(fromRow.getRowNum(), toRow.getRowNum(), CellReference.convertColStringToIndex(fromColumn), CellReference.convertColStringToIndex(toColumn)));
-        return sheet;
+    public static FCell copyCell(final FCell from, final FCell to) {
+        checkNotNull(from, "from == null");
+        checkNotNull(to, "to == null");
+        checkArgument(from.getRow().getSheet().getWorkbook().delegate().equals(to.getRow().getSheet().delegate().getWorkbook()), "the source cell is not located in the same workbook as the target cell");
+
+        to.setStyle(from.getStyle());
+        to.setComment(from.getComment());
+
+        switch (from.getType()) {
+        case NUMERIC:
+            to.delegate().setCellValue(from.delegate().getNumericCellValue());
+            break;
+        case STRING:
+            to.delegate().setCellValue(from.delegate().getStringCellValue());
+            break;
+        case FORMULA:
+            to.delegate().setCellValue(from.delegate().getCellFormula());
+            break;
+        case BOOLEAN:
+            to.delegate().setCellValue(from.delegate().getBooleanCellValue());
+            break;
+        case ERROR:
+            to.delegate().setCellValue(from.delegate().getBooleanCellValue());
+            break;
+        case BLANK:
+            to.delegate().setCellValue((String) null);
+        default: // examine _NONE style?
+            break;
+        }
+        return to;
+    }
+
+    /**
+     * Cuts and pastes the cell-style, cell-type, comment, and value from the source cell to the target cell. If the target
+     * cell contains a value it will be overwritten.
+     * <p>
+     * Note: Both cells must be located in the same workbook.
+     * 
+     * @param from the source cell
+     * @param to   the target cell
+     * @return the target cell
+     */
+    public static FCell cutAndPasteCell(final FCell from, final FCell to) {
+        copyCell(from, to);
+        from.getRow().removeCell(from);
+        return to;
+    }
+
+    /**
+     * Enables filtering for the given range of cells in this sheet.
+     * 
+     * @param from  the first row
+     * @param start the 0-based index of the first column
+     * @param to    the last row
+     * @param end   the 0-based index of the last column
+     * @return this sheet
+     */
+    public FSheet autoFilter(final FRow from, final int start, final FRow to, final int end) {
+        checkNotNull(from, "from == null");
+        checkNotNull(to, "to == null");
+        sheet.setAutoFilter(new CellRangeAddress(from.delegate().getRowNum(), to.delegate().getRowNum(), start, end));
+        return this;
+    }
+
+    /**
+     * Enables filtering for the given range of cells in this sheet.
+     * 
+     * @param from  the first row
+     * @param start the letter reference of first column
+     * @param to    the last row
+     * @param end   the letter reference of the last column
+     * @return this sheet
+     */
+    public FSheet autoFilter(final FRow from, final String start, final FRow to, final String end) {
+        checkNotNull(from, "from == null");
+        checkNotNull(start, "start == null");
+        checkNotNull(to, "to == null");
+        checkNotNull(end, "end == null");
+        sheet.setAutoFilter(new CellRangeAddress(from.delegate().getRowNum(), to.delegate().getRowNum(), CellReference.convertColStringToIndex(start), CellReference.convertColStringToIndex(end)));
+        return this;
     }
 
     /**
@@ -73,16 +145,14 @@ final public class Sheets {
      * This process can be relatively slow on large sheets, so this should normally only be called once per column, at the
      * end of your processing.
      * 
-     * @param sheet the sheet where the column is located
      * @param index the 0-based column index
-     * @return the specified sheet
+     * @return this sheet
      * @see Sheet#autoSizeColumn(int, boolean)
      */
-    public static Sheet autoSizeColumn(final Sheet sheet, final int index) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet autoSizeColumn(final int index) {
         checkArgument(index >= 0, "index < 0");
         sheet.autoSizeColumn(index);
-        return sheet;
+        return this;
     }
 
     /**
@@ -93,16 +163,14 @@ final public class Sheets {
      * This process can be relatively slow on large sheets so this should normally only be called once per column at the end
      * of your processing.
      * 
-     * @param sheet the sheet where the column is located
-     * @param ref   the letter reference of the column
-     * @return the specified sheet
+     * @param ref the letter reference of the column
+     * @return this sheet
      * @see Sheet#autoSizeColumn(int, boolean)
      */
-    public static Sheet autoSizeColumn(final Sheet sheet, final String ref) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet autoSizeColumn(final String ref) {
         checkNotNull(ref, "ref == null");
         sheet.autoSizeColumn(CellReference.convertColStringToIndex(ref));
-        return sheet;
+        return this;
     }
 
     /**
@@ -113,59 +181,50 @@ final public class Sheets {
      * This process can be relatively slow on large sheets, so this should normally only be called once per column, at the
      * end of your processing.
      * 
-     * @param sheet the sheet where the column is located
-     * @return the specified sheet
+     * @return this sheet
      * @see Sheet#autoSizeColumn(int, boolean)
      */
-    public static Sheet autoSizeColumns(final Sheet sheet) {
-        checkNotNull(sheet, "sheet == null");
-
+    public FSheet autoSizeColumns() {
         short max = Streams.stream(sheet).map(Row::getLastCellNum).max(Comparator.naturalOrder()).orElse((short) 0);
 
         for (int index = 0; index <= max; index++)
             sheet.autoSizeColumn(index);
-        return sheet;
+        return this;
     }
 
     /**
-     * Clones a sheet.
+     * Creates and returns the next available row in this sheet.
      * 
-     * @param sheet the sheet to clone
-     * @param name  the name of the target sheet
-     * @return the target sheet
+     * @return the next available row
      */
-    public static Sheet clone(final Sheet sheet, final String name) {
-        checkNotNull(sheet, "sheet == null");
-        checkNotNull(name, "name == null");
-        WorkbookUtil.validateSheetName(name);
-        final Workbook workbook = sheet.getWorkbook();
-        final Sheet target = workbook.cloneSheet(workbook.getSheetIndex(sheet));
-        return Sheets.setSheetName(target, name);
+    public FRow createNextRow() {
+        return getOrCreateFromCache(sheet.createRow(sheet.getLastRowNum() + 1)); // does this work for row 0?
     }
 
     /**
      * Returns the specified row. If the row does not exist it will be created.
      * 
-     * @param sheet  the sheet where the row is located
      * @param rownum the 0-based index of the specified row
      * @return the specified row
      */
-    public static Row getOrCreateRow(final Sheet sheet, final int rownum) {
-        checkNotNull(sheet, "sheet == null");
+    public FRow getOrCreateRow(final int rownum) {
         checkArgument(rownum >= 0, "rownum < 0");
-        return CellUtil.getRow(rownum, sheet);
+        return getOrCreateFromCache(CellUtil.getRow(rownum, sheet));
     }
+    
+//    public FRow getRow(final int rownum) {
+//        checkArgument(rownum >= 0, "rownum < 0");
+//        final Row row = sheet.getRow(rownum);
+//        return row == null ? null : getOrCreateFromCache(row);
+//    }
 
     /**
-     * Returns the workbook that contains the specified sheet. If the sheet has been deleted this method will result in an
-     * exception.
+     * Returns the workbook that contains this sheet.
      * 
-     * @param sheet the specified sheet
-     * @return the workbook which contains the specified sheet
+     * @return the workbook which contains this sheet
      */
-    public static Workbook getWorkbookOf(final Sheet sheet) {
-        checkNotNull(sheet, "sheet == null");
-        return sheet.getWorkbook();
+    public FWorkbook getWorkbook() {
+        return fworkbook;
     }
 
     /**
@@ -173,13 +232,12 @@ final public class Sheets {
      * 
      * @param sheet the specified sheet
      * @param index the 0-based column index
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet hideColumn(final Sheet sheet, final int index) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet hideColumn(final int index) {
         checkArgument(index >= 0, "index < 0");
         sheet.setColumnHidden(index, true);
-        return sheet;
+        return this;
     }
 
     /**
@@ -189,108 +247,100 @@ final public class Sheets {
      * @param ref   the letter reference of the column
      * @return the specified sheet
      */
-    public static Sheet hideColumn(final Sheet sheet, final String ref) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet hideColumn(final String ref) {
         checkNotNull(ref, "ref == null");
         sheet.setColumnHidden(CellReference.convertColStringToIndex(ref), true);
-        return sheet;
+        return this;
     }
 
     /**
      * Inserts a row at the specified location shifting all subsequent rows by 1.
      * 
-     * @param sheet  the sheet in which the row will be inserted
      * @param rownum the 0-based index of the row
      * @return the new row
      */
-    public static Row insertRow(final Sheet sheet, final int rownum) {
-        checkNotNull(sheet, "sheet == null");
+    public FRow insertRow(final int rownum) {
         checkArgument(rownum >= 0, "rownum < 0");
         sheet.shiftRows(rownum, sheet.getLastRowNum(), 1);
-        return sheet.createRow(rownum);
+        return getOrCreateFromCache(sheet.createRow(rownum));
+    }
+
+    @Override
+    public Iterator<FRow> iterator() {
+        return Iterators.transform(sheet.iterator(), this::getOrCreateFromCache);
     }
 
     /**
      * Sets the column style for future and existing cells in a column.
      * 
-     * @param sheet the specified sheet
      * @param index the 0-based column index
      * @param style the cell-style to set
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet setColumnStyle(final Sheet sheet, final int index, final CellStyle style) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet setColumnStyle(final int index, final CellStyle style) {
         checkArgument(index >= 0, "column index < 0");
         checkNotNull(style, "style == null");
 
         for (final Row row : sheet) {
-            final Cell cell = Rows.getCell(row, index);
+            final Cell cell = row.getCell(index);
             if (cell != null)
                 cell.setCellStyle(style);
         }
 
         sheet.setDefaultColumnStyle(index, style);
 
-        return sheet;
+        return this;
     }
 
     /**
      * Sets the column style for future and existing cells in a column.
      * 
-     * @param sheet the specified sheet
      * @param ref   the letter reference of the column
      * @param style the cell-style to set
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet setColumnStyle(final Sheet sheet, final String ref, final CellStyle style) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet setColumnStyle(final String ref, final CellStyle style) {
         checkNotNull(ref, "ref == null");
         checkNotNull(style, "style == null");
 
-        return setColumnStyle(sheet, CellReference.convertColStringToIndex(ref), style);
+        return setColumnStyle(CellReference.convertColStringToIndex(ref), style);
     }
 
     /**
      * Sets the width of a column in units of roughly 1 character width.
      * 
-     * @param sheet the specified sheet
      * @param index the 0-based column index
      * @param width the width of the column in units of roughly 1 character width
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet setColumnWidth(final Sheet sheet, final int index, final int width) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet setColumnWidth(final int index, final int width) {
         checkNotNull(index, "column == null");
         checkArgument(width > 0, "width < 0");
         sheet.setColumnWidth(index, width * 256);
-        return sheet;
+        return this;
     }
 
     /**
      * Sets the width of a column in units of roughly 1 character width.
      * 
-     * @param sheet the specified sheet
      * @param ref   the letter reference of the column
      * @param width the width of the column in units of roughly 1 character width
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet setColumnWidth(final Sheet sheet, final String ref, final int width) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet setColumnWidth(final String ref, final int width) {
         checkNotNull(ref, "ref == null");
         checkArgument(width > 0, "width <= 0");
         sheet.setColumnWidth(CellReference.convertColStringToIndex(ref), width * 256);
-        return sheet;
+        return this;
     }
 
     /**
-     * Sets the height for future and existing rows in the specified sheet.
+     * Sets the height for future and existing rows in this sheet.
      * 
-     * @param sheet  the specified sheet
      * @param height the height to set in points
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet setRowHeight(final Sheet sheet, final float height) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet setRowHeight(final float height) {
         checkArgument(height > 0, "height < 1");
 
         for (final Row row : sheet)
@@ -298,41 +348,25 @@ final public class Sheets {
 
         sheet.setDefaultRowHeightInPoints(height);
 
-        return sheet;
+        return this;
     }
 
     /**
-     * Sets the name of the specified sheet.
+     * Sets the name of this sheet.
      * 
-     * @param sheet the specified sheet
-     * @param name  the name to set
-     * @return the specified sheet
+     * @param name the name to set
+     * @return this workbook
      * @throws IllegalArgumentException if the name contains illegal characters
      */
-    public static Sheet setSheetName(final Sheet sheet, final String name) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet setSheetName(final String name) {
         checkNotNull(name, "name == null");
         WorkbookUtil.validateSheetName(name);
         final Workbook workbook = sheet.getWorkbook();
         final int index = workbook.getSheetIndex(sheet);
         workbook.setSheetName(index, name);
-        return sheet;
+        return this;
     }
 
-//    /**
-//     * Sets the zoom magnification for the specified sheet.
-//     * 
-//     * @param sheet   the specified sheet
-//     * @param percent the zoom percentage in integer units
-//     * @return the specified sheet
-//     */
-//    public static Sheet setZoom(final Sheet sheet, final int percent) {
-//        checkNotNull(sheet, "sheet == null");
-//        checkArgument(percent >= 0 && percent <= 200, "percent must be between 0 and 200 inclusive");
-//        sheet.setZoom(percent, 100);
-//        return sheet;
-//    }
-//
 //    /**
 //     * Returns a view of the specified sheet skipping blank rows.
 //     * <p>
@@ -383,17 +417,27 @@ final public class Sheets {
 //    }
 
     /**
+     * Sets the zoom magnification for this sheet.
+     * 
+     * @param percent the zoom percentage in integer units from 10 to 400
+     * @return this sheet
+     */
+    public FSheet setZoom(final int percent) {
+        checkArgument(percent >= 10 && percent <= 400, "percent must be between 10 and 400 inclusive");
+        sheet.setZoom(percent);
+        return this;
+    }
+
+    /**
      * Makes a column visible.
      * 
-     * @param sheet the specified sheet
      * @param index the 0-based column index
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet unhideColumn(final Sheet sheet, final int index) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet unhideColumn(final int index) {
         checkArgument(index >= 0, "column index < 0");
         sheet.setColumnHidden(index, false);
-        return sheet;
+        return this;
     }
 
     /**
@@ -401,25 +445,25 @@ final public class Sheets {
      * 
      * @param sheet the specified sheet
      * @param ref   the letter reference of the column
-     * @return the specified sheet
+     * @return this sheet
      */
-    public static Sheet unhideColumn(final Sheet sheet, final String ref) {
-        checkNotNull(sheet, "sheet == null");
+    public FSheet unhideColumn(final String ref) {
         checkNotNull(ref, "ref == null");
         sheet.setColumnHidden(CellReference.convertColStringToIndex(ref), false);
-        return sheet;
+        return this;
     }
 
-    /**
-     * Creates and returns the next available row in the specified sheet. Shorthand for
-     * {@code sheet.createRow(sheet.getLastRowNum() + 1)}.
-     * 
-     * @param sheet the specified sheet
-     * @return the next available row
-     */
-    public static Row createNextRow(final Sheet sheet) {
-        checkNotNull(sheet, "sheet == null");
-        return sheet.createRow(sheet.getLastRowNum() + 1); // does this work for row 0?
+    private FRow getOrCreateFromCache(final Row row) {
+        try {
+            return rows.get(row, () -> new FRow(this, row));
+        } catch (ExecutionException e) {
+            throw new AssertionError(); // cannot happen
+        }
+    }
+
+    public FSheet createFreezePane(int i, int j) {
+        sheet.createFreezePane(i, j);
+        return this;        
     }
 
 }

@@ -1,4 +1,4 @@
-package software.leonov.cells;
+package software.leonov.cells.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -17,6 +17,8 @@ import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 
 import com.google.common.base.Preconditions;
+
+import software.leonov.cells.fluent.FWorkbook;
 
 /**
  * A builder for creating {@link CellStyle}s.
@@ -63,9 +65,15 @@ public final class StyleBuilder {
      * @param workbook the workbook where the cell-style returned by this builder will reside
      */
     public StyleBuilder(final Workbook workbook) {
-        Preconditions.checkNotNull(workbook);
+        checkNotNull(workbook, "workbook == null");
         this.style = workbook.createCellStyle();
         this.workbook = workbook;
+    }
+    
+    public StyleBuilder(final FWorkbook workbook) {
+        checkNotNull(workbook, "workbook == null");
+        this.style = workbook.delegate().createCellStyle();
+        this.workbook = workbook.delegate();
     }
 
     /**
@@ -79,10 +87,18 @@ public final class StyleBuilder {
      * @param style    the base cell-style to start with
      */
     public StyleBuilder(final Workbook workbook, final CellStyle style) {
-        Preconditions.checkNotNull(workbook);
-        Preconditions.checkNotNull(style);
+        checkNotNull(workbook, "workbook == null");
+        checkNotNull(style, "style == null");
         this.workbook = workbook;
         this.style = workbook.createCellStyle();
+        this.style.cloneStyleFrom(style);
+    }
+    
+    public StyleBuilder(final FWorkbook workbook, final CellStyle style) {
+        checkNotNull(workbook, "workbook == null");
+        checkNotNull(style, "style == null");
+        this.workbook = workbook.delegate();
+        this.style = workbook.delegate().createCellStyle();
         this.style.cloneStyleFrom(style);
     }
 

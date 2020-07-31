@@ -47,8 +47,8 @@ final public class Cells {
     }
 
     /**
-     * Copies the cell-style, cell-type, comment, and value from from the specified cell to the target cell. If the target
-     * cell contains a value it will be overwritten.
+     * Copies the cell-style, cell-type, comment, and value from the specified cell to the target cell. If the target cell
+     * contains a value it will be overwritten.
      * <p>
      * Note: Both cells must be located in the same workbook.
      * 
@@ -64,7 +64,7 @@ final public class Cells {
         to.setCellStyle(from.getCellStyle());
         to.setCellComment(from.getCellComment());
 
-        switch (from.getCellType()) { // What is _NONE style?
+        switch (from.getCellType()) {
         case NUMERIC:
             to.setCellValue(from.getNumericCellValue());
             break;
@@ -82,15 +82,15 @@ final public class Cells {
             break;
         case BLANK:
             to.setCellValue((String) null);
-        default:
+        default: // examine _NONE style?
             break;
         }
         return to;
     }
 
     /**
-     * Cuts the cell-style, cell-type, comment, and value from from the specified cell to the target cell. If the target
-     * cell contains a value it will be overwritten.
+     * Cuts and pastes the cell-style, cell-type, comment, and value from the specified cell to the target cell. If the
+     * target cell contains a value it will be overwritten.
      * <p>
      * Note: Both cells must be located in the same workbook.
      * 
@@ -118,20 +118,19 @@ final public class Cells {
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Boolean}
-     * @throws IllegalArgumentException if the value of the cell cannot be parsed as an integer
+     * @throws IllegalArgumentException if the value of the cell cannot be parsed as a boolean
      */
     public static Boolean parseBoolean(final Cell cell) {
         if (cell == null)
             return null;
 
-        switch (trim(formatValue(cell))) {
-        case "true":
-            return Boolean.TRUE;
-        case "false":
-            return Boolean.FALSE;
-        default:
+        final String value = trim(formatValue(cell));
+        if (value.equalsIgnoreCase("true"))
+            return true;
+        else if (value.equalsIgnoreCase("false"))
+            return false;
+        else
             throw new IllegalArgumentException();
-        }
 
     }
 
@@ -142,7 +141,7 @@ final public class Cells {
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Byte}
-     * @throws NumberFormatException if the value of the cell cannot be parsed as an integer
+     * @throws NumberFormatException if the value of the cell cannot be parsed as a byte
      */
     public static Byte parseByte(final Cell cell) {
         return cell == null ? null : new Byte(trim(formatValue(cell)));
@@ -155,7 +154,7 @@ final public class Cells {
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Double}
-     * @throws NumberFormatException if the value of the cell cannot be parsed as an integer
+     * @throws NumberFormatException if the value of the cell cannot be parsed as a double
      */
     public static Double parseDouble(final Cell cell) {
         return cell == null ? null : new Double(trim(formatValue(cell)));
@@ -168,7 +167,7 @@ final public class Cells {
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Float}
-     * @throws NumberFormatException if the value of the cell cannot be parsed as an integer
+     * @throws NumberFormatException if the value of the cell cannot be parsed as a float
      */
     public static Float parseFloat(final Cell cell) {
         return cell == null ? null : new Float(trim(formatValue(cell)));
@@ -194,7 +193,7 @@ final public class Cells {
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Long}
-     * @throws NumberFormatException if the value of the cell cannot be parsed as an integer
+     * @throws NumberFormatException if the value of the cell cannot be parsed as a long
      */
     public static Long parseLong(final Cell cell) {
         return cell == null ? null : new Long(trim(formatValue(cell)));
@@ -207,7 +206,7 @@ final public class Cells {
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Short}
-     * @throws NumberFormatException if the value of the cell cannot be parsed as a Short
+     * @throws NumberFormatException if the value of the cell cannot be parsed as a short
      */
     public static Short parseShort(final Cell cell) {
         return cell == null ? null : new Short(trim(formatValue(cell)));
@@ -248,10 +247,10 @@ final public class Cells {
     }
 
     /**
-     * Returns the row that owns this cell. If the cell has been deleted this method will result in an exception.
+     * Returns the row that owns the specified cell. If the cell has been deleted this method will result in an exception.
      * 
      * @param cell the specified cell
-     * @return the row that owns this cell
+     * @return the row that owns the specified cell
      */
     public static Row getRowOf(final Cell cell) {
         checkNotNull(cell, "cell == null");
@@ -259,10 +258,11 @@ final public class Cells {
     }
 
     /**
-     * Returns the sheet this cell belongs to. If the cell has been deleted this method will result in an exception.
+     * Returns the sheet the specified cell belongs to. If the cell has been deleted this method will result in an
+     * exception.
      * 
      * @param cell the specified cell
-     * @return the sheet this cell belongs to
+     * @return the sheet the specified cell belongs to
      */
     public static Sheet getSheetOf(final Cell cell) {
         checkNotNull(cell, "cell == null");
@@ -270,10 +270,11 @@ final public class Cells {
     }
 
     /**
-     * Return the workbook this cells belongs to. If the cell has been deleted this method will result in an exception.
+     * Return the workbook the specified cell belongs to. If the cell has been deleted this method will result in an
+     * exception.
      * 
      * @param cell the specified cell
-     * @return the workbook this cells belongs to
+     * @return the workbook the cell belongs to
      */
     public static Workbook getWorkbookOf(final Cell cell) {
         checkNotNull(cell, "cell == null");
@@ -328,14 +329,14 @@ final public class Cells {
      * If {@code value} is a {@link Number} the cell value will be set to the {@code double} value of the number by first
      * calling {@link Number#doubleValue()} followed by {@link Cell#setCellValue(double)}.
      * <p>
-     * If {@code value} is a {@code Boolean}, {@link Calendar}, {@link Date}, or {@link LocalDateTime} ,or
+     * If {@code value} is a {@code Boolean}, {@link Calendar}, {@link Date}, {@link LocalDateTime}, or
      * {@link RichTextString} the cell value will be set by calling {@link Cell#setCellValue(boolean)},
-     * {@link Cell#setCellValue(Calendar)}, {@link Cell#setCellValue(Date)}, {@link Cell#setCellValue(LocalDateTime), or
+     * {@link Cell#setCellValue(Calendar)}, {@link Cell#setCellValue(Date)}, {@link Cell#setCellValue(LocalDateTime)}, or
      * {@link Cell#setCellValue(RichTextString)} respectively.
      * <p>
      * For all other types the cell will be set to {@code value.toString()}. Note if the result of {@code value.toString()}
      * is empty or composed exclusively of whitespace characters according to {@link CharMatcher#WHITESPACE}, it will be
-     * ignored (to insert such a string consider using {@link Cell#setCellValue(String)}).
+     * ignored (to insert such a string use {@link Cell#setCellValue(String)} directly).
      * 
      * @param cell  the specified cell
      * @param value the value to set
