@@ -1,4 +1,4 @@
 /**
- * Static utilities which assist reading and writing Microsoft Excel documents.
+ * Static utilities and helper methods.
  */
 package software.leonov.cells.util;

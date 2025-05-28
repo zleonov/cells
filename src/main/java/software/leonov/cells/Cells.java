@@ -2,7 +2,7 @@ package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static software.leonov.common.base.Str.isWhitespace;
+import static com.google.common.base.Strings.emptyToNull;
 import static software.leonov.common.base.Str.trim;
 
 import java.time.Instant;
@@ -14,6 +14,7 @@ import java.util.Date;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Hyperlink;
@@ -78,7 +79,7 @@ final public class Cells {
             to.setCellValue(from.getBooleanCellValue());
             break;
         case ERROR:
-            to.setCellValue(from.getBooleanCellValue());
+            to.setCellErrorValue(from.getErrorCellValue());
             break;
         case BLANK:
             to.setCellValue((String) null);
@@ -110,7 +111,8 @@ final public class Cells {
     /**
      * Returns the value of the specified cell parsed as a {@code Boolean}.
      * <p>
-     * This method is {@code null} safe.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * <p>
      * Note: this method defines a boolean value differently than {@link Boolean#parseBoolean(String) Java}. If the
      * formatted cell value is not equal to the string "true" or "false" (ignoring case and whitespace) this call will
@@ -137,83 +139,92 @@ final public class Cells {
     /**
      * Returns the value of the specified cell parsed as a {@code Byte}.
      * <p>
-     * This method is {@code null} safe.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Byte}
      * @throws NumberFormatException if the value of the cell cannot be parsed as a byte
      */
     public static Byte parseByte(final Cell cell) {
-        return cell == null ? null : new Byte(trim(formatValue(cell)));
+        return cell == null ? null : new Byte(formatValue(cell));
     }
 
     /**
      * Returns the value of the specified cell parsed as a {@code Double}.
      * <p>
-     * This method is {@code null} safe.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Double}
      * @throws NumberFormatException if the value of the cell cannot be parsed as a double
      */
     public static Double parseDouble(final Cell cell) {
-        return cell == null ? null : new Double(trim(formatValue(cell)));
+        return cell == null ? null : new Double(formatValue(cell));
     }
 
     /**
      * Returns the value of the specified cell parsed as a {@code Float}.
      * <p>
-     * This method is {@code null} safe.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Float}
      * @throws NumberFormatException if the value of the cell cannot be parsed as a float
      */
     public static Float parseFloat(final Cell cell) {
-        return cell == null ? null : new Float(trim(formatValue(cell)));
+        return cell == null ? null : new Float(formatValue(cell));
     }
 
     /**
      * Returns the value of the specified cell parsed as an {@code Integer}.
      * <p>
-     * This method is {@code null} safe.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as an {@code Integer}
      * @throws NumberFormatException if the value of the cell cannot be parsed as an integer
      */
     public static Integer parseInteger(final Cell cell) {
-        return cell == null ? null : new Integer(trim(formatValue(cell)));
+        return cell == null ? null : new Integer(formatValue(cell));
     }
 
     /**
      * Returns the value of the specified cell parsed as a {@code Long}.
      * <p>
-     * This method is {@code null} safe.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Long}
      * @throws NumberFormatException if the value of the cell cannot be parsed as a long
      */
     public static Long parseLong(final Cell cell) {
-        return cell == null ? null : new Long(trim(formatValue(cell)));
+        return cell == null ? null : new Long(formatValue(cell));
     }
 
     /**
      * Returns the value of the specified cell parsed as a {@code Short}.
      * <p>
-     * This method is {@code null} safe.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as a {@code Short}
      * @throws NumberFormatException if the value of the cell cannot be parsed as a short
      */
     public static Short parseShort(final Cell cell) {
-        return cell == null ? null : new Short(trim(formatValue(cell)));
+        return cell == null ? null : new Short(formatValue(cell));
     }
 
     /**
      * Returns the value of the specified cell parsed as an {@code Instant} using the system default time-zone offset.
+     * <p>
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value.
      * 
      * @param cell the specified cell
      * @return the value of the specified cell parsed as an {@code Instant} using the system default time-zone offset
@@ -229,7 +240,8 @@ final public class Cells {
     /**
      * Returns the formatted value of the specified cell.
      * <p>
-     * This method is {@code null} safe. If the specified cell is {@code null} it will return a {@code null} value.
+     * This method is {@code null} safe. If the specified cell is {@code null} or blank this method will return a
+     * {@code null} value. Leading and trailing whitespace is trimmed.
      * <p>
      * The intention is to retrieve the data in the specified cell the exact way you would see it in Microsoft Excel,
      * regardless of the cell type (e.g. 5.200 would be returned as 5.200 not 5.2).
@@ -240,10 +252,10 @@ final public class Cells {
      * @return the formatted value of the specified cell
      */
     public static String formatValue(final Cell cell) {
-        if (cell == null)
+        if (cell == null || cell.getCellType() == CellType.BLANK)
             return null;
         // if (cell.getCellType() == CellType.BOOLEAN) return cell.toString().toUpperCase(); // why do we need this?
-        return DATA_FORMATTER.formatCellValue(cell);
+        return emptyToNull(trim((DATA_FORMATTER.formatCellValue(cell))));
     }
 
     /**
@@ -323,30 +335,30 @@ final public class Cells {
     /**
      * Sets a value for the specified cell.
      * <p>
-     * This method is <b>not</b> {@code null} safe. If {@code value} is {@code null} a {@code NullPointerException} will be
-     * thrown.
-     * <p>
      * If {@code value} is a {@link Number} the cell value will be set to the {@code double} value of the number by first
      * calling {@link Number#doubleValue()} followed by {@link Cell#setCellValue(double)}.
      * <p>
-     * If {@code value} is a {@code Boolean}, {@link Calendar}, {@link Date}, {@link LocalDateTime}, or
+     * If {@code value} is a {@link Boolean}, {@link Calendar}, {@link Date}, {@link LocalDateTime}, or
      * {@link RichTextString} the cell value will be set by calling {@link Cell#setCellValue(boolean)},
      * {@link Cell#setCellValue(Calendar)}, {@link Cell#setCellValue(Date)}, {@link Cell#setCellValue(LocalDateTime)}, or
      * {@link Cell#setCellValue(RichTextString)} respectively.
      * <p>
-     * For all other types the cell will be set to {@code value.toString()}. Note if the result of {@code value.toString()}
-     * is empty or composed exclusively of whitespace characters according to {@link CharMatcher#WHITESPACE}, it will be
-     * ignored (to insert such a string use {@link Cell#setCellValue(String)} directly).
+     * For all other types the cell will be set to {@code value.toString()} after removing trailing and leading
+     * {@link CharMatcher#whitespace() whitespace}.
+     * <p>
+     * Note: This method is {@code null} safe. If {@code value} is {@code null} or the result of {@code value.toString()} is
+     * blank the cell will be set to {@link CellType#BLANK}.
      * 
      * @param cell  the specified cell
      * @param value the value to set
      * @return the specified cell
-     * @throws IllegalArgumentException if the value to set is a string which exceeds 32767 characters
      */
     public static Cell setValue(final Cell cell, final Object value) {
         checkNotNull(cell, "cell == null");
-        checkNotNull(value, "value == null");
-        if (value instanceof Boolean)
+
+        if (value == null)
+            cell.setBlank();
+        else if (value instanceof Boolean)
             cell.setCellValue((Boolean) value);
         else if (value instanceof Calendar)
             cell.setCellValue((Calendar) value);
@@ -358,14 +370,9 @@ final public class Cells {
             cell.setCellValue((LocalDateTime) value);
         else if (value instanceof RichTextString)
             cell.setCellValue((RichTextString) value);
-        else {
-            final String string = value.toString();
-            if (!isWhitespace(string)) {
-                if (string.length() > 32767)
-                    throw new IllegalArgumentException("value > 32767 characters");
-                cell.setCellValue(string);
-            }
-        }
+        else
+            cell.setCellValue(emptyToNull(trim(value.toString())));
+
         return cell;
     }
 

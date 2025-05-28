@@ -1,29 +1,19 @@
 package software.leonov.cells.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.poi.hssf.util.HSSFColor;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Color;
 import org.apache.poi.ss.usermodel.DataFormat;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
-import org.apache.poi.xssf.usermodel.XSSFColor;
-
-import com.google.common.base.Preconditions;
-
-import software.leonov.cells.fluent.FWorkbook;
 
 /**
  * A builder for creating {@link CellStyle}s.
- * <p>
- * This builder employees the method chaining paradigm.
  * <p>
  * Example:
  * <p>
@@ -32,19 +22,27 @@ import software.leonov.cells.fluent.FWorkbook;
  *   import static org.apache.poi.ss.usermodel.IndexedColors.*;
  *   import static org.apache.poi.ss.usermodel.CellStyle.*;
  *
- *   final StyleBuilder builder = new StyleBuilder(workbook)
+ *   // Creating a new style
+ *
+ *   final StyleBuilder builder = new StyleBuilder()
  *                         .setWrapText(true)
  *                         .setBorder(BorderStyle.DASH_DOT);
  *
- *   final CellStyle wrappedDashDotStyle = builder.build();
+ *   final CellStyle wrappedDashDotStyle = builder.create(workbook);
  *
  *   final CellStyle wrappedBorderThinStyle = builder
  *                        .setBorder(BorderStyle.BORDER_THIN)
- *                        .build();
+ *                        .create(workbook);
+ *                        
+ *   // Update an existing style
+ *   
+ *   CellStyle style = workbook.createCellStyle();
+ *   ...
+ *   new StyleBuilder().setWrapText(false).update(style);
  * </pre>
  * 
- * Builder instances are reusable. It is safe to call {@link #build()} multiple times to obtain multiple
- * {@code CellStyle} instances.
+ * Builder instances are reusable. It maintains its own state and can create or update multiple {@code CellStyle}
+ * instances across different workbooks.
  * <p>
  * <b>Note:</b> A workbook can store a finite number of cell-styles. Be careful not to create identical instances.
  * Styles should be reused whenever possible.
@@ -53,73 +51,117 @@ import software.leonov.cells.fluent.FWorkbook;
  */
 public final class StyleBuilder {
 
-    private final CellStyle style;
-    private final Workbook workbook;
+    // Border styles
+    private BorderStyle topBorder    = null;
+    private BorderStyle bottomBorder = null;
+    private BorderStyle leftBorder   = null;
+    private BorderStyle rightBorder  = null;
+
+    // Border colors
+    private IndexedColors topBorderColor    = null;
+    private IndexedColors bottomBorderColor = null;
+    private IndexedColors leftBorderColor   = null;
+    private IndexedColors rightBorderColor  = null;
+
+    // Data format
+    private Short dataFormat = null;
+
+    // Fill colors and pattern
+    private IndexedColors   fillBackgroundColor = null;
+    private IndexedColors   fillForegroundColor = null;
+    private FillPatternType fillPattern         = null;
+
+    // Font
+    private Font font = null;
+
+    // Cell alignment
+    private HorizontalAlignment horizontalAlignment = null;
+    private VerticalAlignment   verticalAlignment   = null;
+
+    // Cell properties
+    private Boolean hidden        = null;
+    private Short   indention     = null;
+    private Boolean locked        = null;
+    private Boolean quotePrefixed = null;
+    private Short   rotation      = null;
+    private Boolean shrinkToFit   = null;
+    private Boolean wrapText      = null;
 
     /**
-     * Creates a new {@code StyleBuilder} using the specified workbook.
-     * <p>
-     * Note: This builder does not create a new {@code Font} object for the underlying cell-style. Modifying the default
-     * font by any other means than using a {@link FontBuilder} may affect multiple cell-styles.
-     * 
-     * @param workbook the workbook where the cell-style returned by this builder will reside
+     * Creates a new {@code StyleBuilder} with no default settings.
      */
-    public StyleBuilder(final Workbook workbook) {
-        checkNotNull(workbook, "workbook == null");
-        this.style = workbook.createCellStyle();
-        this.workbook = workbook;
-    }
-    
-    public StyleBuilder(final FWorkbook workbook) {
-        checkNotNull(workbook, "workbook == null");
-        this.style = workbook.delegate().createCellStyle();
-        this.workbook = workbook.delegate();
+    public StyleBuilder() {
     }
 
     /**
-     * Creates a new {@code StyleBuilder} initialized with the specified cell-style. The given {@code CellStyle} object will
-     * be copied and left unmodified.
-     * <p>
-     * Note: The {@code Font} object specified by the underlying cell-style itself is not duplicated. Modifying the font by
-     * any other means than using a {@link FontBuilder} may affect multiple cell-styles.
+     * Creates a new {@code CellStyle} in the provided workbook based on the current builder settings.
      * 
-     * @param workbook the workbook where the cell-style returned by this builder will reside
-     * @param style    the base cell-style to start with
+     * @param workbook the workbook where the cell-style will be created
+     * @return a newly-created {@code CellStyle}
      */
-    public StyleBuilder(final Workbook workbook, final CellStyle style) {
+    public CellStyle create(final Workbook workbook) {
         checkNotNull(workbook, "workbook == null");
+        return update(workbook.createCellStyle());
+    }
+
+    /**
+     * Creates a new {@code CellStyle} in the provided workbook, initialized with the specified cell-style, and then updated
+     * with the current builder settings.
+     * 
+     * @param workbook  the workbook where the cell-style will be created
+     * @param baseStyle the cell-style to use as a base
+     * @return the newly-created {@code CellStyle}
+     */
+    public CellStyle create(final Workbook workbook, final CellStyle baseStyle) {
+        checkNotNull(workbook, "workbook == null");
+        checkNotNull(baseStyle, "baseStyle == null");
+
+        final CellStyle style = workbook.createCellStyle();
+        style.cloneStyleFrom(baseStyle);
+        return update(style);
+    }
+
+    /**
+     * Updates the provided style with the current builder settings.
+     * 
+     * @param style the style to update
+     * @return the updated style
+     */
+    public CellStyle update(final CellStyle style) {
         checkNotNull(style, "style == null");
-        this.workbook = workbook;
-        this.style = workbook.createCellStyle();
-        this.style.cloneStyleFrom(style);
-    }
-    
-    public StyleBuilder(final FWorkbook workbook, final CellStyle style) {
-        checkNotNull(workbook, "workbook == null");
-        checkNotNull(style, "style == null");
-        this.workbook = workbook.delegate();
-        this.style = workbook.delegate().createCellStyle();
-        this.style.cloneStyleFrom(style);
+        applyToStyle(style);
+        return style;
     }
 
     /**
-     * Returns a newly-created {@code CellStyle} based on the contents of this builder.
+     * Clears all settings from this builder, returning it to its initial state.
      * 
-     * @return a newly-created {@code CellStyle} based on the contents of this builder
+     * @return this {@code StyleBuilder} instance
      */
-    public CellStyle build() {
-        final CellStyle newStyle = workbook.createCellStyle();
-        newStyle.cloneStyleFrom(style);
-        return newStyle;
-    }
-
-    /**
-     * Returns a font builder initialized with the font used by the underlying cell-style.
-     * 
-     * @return a font builder initialized with the font used by the underlying cell-style
-     */
-    public FontBuilder getFontBuilder() {
-        return new FontBuilder(workbook, workbook.getFontAt(style.getFontIndexAsInt()));
+    public StyleBuilder clear() {
+        this.topBorder           = null;
+        this.bottomBorder        = null;
+        this.leftBorder          = null;
+        this.rightBorder         = null;
+        this.topBorderColor      = null;
+        this.bottomBorderColor   = null;
+        this.leftBorderColor     = null;
+        this.rightBorderColor    = null;
+        this.dataFormat          = null;
+        this.fillBackgroundColor = null;
+        this.fillForegroundColor = null;
+        this.fillPattern         = null;
+        this.font                = null;
+        this.hidden              = null;
+        this.indention           = null;
+        this.locked              = null;
+        this.quotePrefixed       = null;
+        this.rotation            = null;
+        this.shrinkToFit         = null;
+        this.horizontalAlignment = null;
+        this.verticalAlignment   = null;
+        this.wrapText            = null;
+        return this;
     }
 
     /**
@@ -129,8 +171,8 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setAlignment(final HorizontalAlignment align) {
-        checkNotNull(align, "alight == null");
-        style.setAlignment(align);
+        checkNotNull(align, "align == null");
+        this.horizontalAlignment = align;
         return this;
     }
 
@@ -142,8 +184,10 @@ public final class StyleBuilder {
      */
     public StyleBuilder setBorder(final BorderStyle border) {
         checkNotNull(border, "border == null");
-        for (final BorderSide side : BorderSide.values())
-            setBorder(side, border);
+        this.topBorder    = border;
+        this.bottomBorder = border;
+        this.leftBorder   = border;
+        this.rightBorder  = border;
         return this;
     }
 
@@ -157,20 +201,16 @@ public final class StyleBuilder {
     public StyleBuilder setBorder(final BorderSide side, final BorderStyle border) {
         checkNotNull(side, "side == null");
         checkNotNull(border, "border == null");
-        switch (side) {
-        case TOP:
-            style.setBorderTop(border);
-            break;
-        case BOTTOM:
-            style.setBorderBottom(border);
-            break;
-        case LEFT:
-            style.setBorderLeft(border);
-            break;
-        case RIGHT:
-            style.setBorderRight(border);
-            break;
-        }
+
+        if (side == BorderSide.TOP)
+            this.topBorder = border;
+        else if (side == BorderSide.BOTTOM)
+            this.bottomBorder = border;
+        else if (side == BorderSide.LEFT)
+            this.leftBorder = border;
+        else
+            this.rightBorder = border;
+
         return this;
     }
 
@@ -179,11 +219,8 @@ public final class StyleBuilder {
      * 
      * @param color the color to set
      * @return this {@code StyleBuilder} instance
-     * @see Colors
-     * @see HSSFColor
-     * @see XSSFColor
      */
-    public StyleBuilder setBorderColor(final Color color) {
+    public StyleBuilder setBorderColor(final IndexedColors color) {
         checkNotNull(color, "color == null");
 
         for (final BorderSide side : BorderSide.values())
@@ -198,19 +235,21 @@ public final class StyleBuilder {
      * @param side  which side of the cell to set
      * @param color the color to set
      * @return this {@code StyleBuilder} instance
-     * @see Colors
-     * @see HSSFColor
-     * @see XSSFColor
      */
-    public StyleBuilder setBorderColor(final BorderSide side, final Color color) {
+    public StyleBuilder setBorderColor(final BorderSide side, final IndexedColors color) {
         checkNotNull(side, "side == null");
         checkNotNull(color, "color == null");
 
-        if (color instanceof XSSFColor) {
-            checkArgument(style instanceof XSSFCellStyle, "XSSFColor is not compatible with %s", style.getClass().getSimpleName());
-            return setBorderColor(side, (XSSFColor) color);
-        } else
-            return setBorderColor(side, Colors.getIndex(color));
+        if (side == BorderSide.TOP)
+            this.topBorderColor = color;
+        else if (side == BorderSide.BOTTOM)
+            this.bottomBorderColor = color;
+        else if (side == BorderSide.LEFT)
+            this.leftBorderColor = color;
+        else if (side == BorderSide.RIGHT)
+            this.rightBorderColor = color;
+
+        return this;
     }
 
     /**
@@ -223,79 +262,87 @@ public final class StyleBuilder {
      * @see CellStyle#getDataFormat()
      */
     public StyleBuilder setDataFormat(final short fmt) {
-        style.setDataFormat(fmt);
+        this.dataFormat = fmt;
         return this;
     }
 
     /**
      * Sets the background fill color.
+     * <p>
+     * This method works in concert with {@link #setFillForegroundColor(IndexedColors)} and
+     * {@link #setFillPattern(FillPatternType)} to produce the desired results.
      * 
      * @param color the color to set
      * @return this {@code StyleBuilder} instance
-     * @see #setFillForegroundColor(Color)
-     * @see Colors
-     * @see HSSFColor
-     * @see XSSFColor
+     * @see #setFillForegroundColor(IndexedColors)
      */
-    public StyleBuilder setFillBackgroundColor(final Color color) {
+    public StyleBuilder setFillBackgroundColor(final IndexedColors color) {
         checkNotNull(color, "color == null");
-        if (color instanceof XSSFColor) {
-            checkArgument(style instanceof XSSFCellStyle, "XSSFColor is not compatible with %s", style.getClass().getSimpleName());
-            ((XSSFCellStyle) style).setFillBackgroundColor((XSSFColor) color);
-        } else
-            style.setFillBackgroundColor(Colors.getIndex(color));
+        this.fillBackgroundColor = color;
         return this;
     }
 
     /**
-     * Sets the foreground fill color. The foreground fill color must be set prior to
-     * {@link #setFillBackgroundColor(Color)}.
+     * Sets the foreground fill color.
      * <p>
-     * This method works in concert with {@link #setFillPattern(FillPatternType)} to produce the desired results.
+     * This method works in concert with {@link #setFillBackgroundColor(IndexedColors)} and
+     * {@link #setFillPattern(FillPatternType)} to produce the desired results.
      * 
      * @param color the color to set
      * @return this {@code StyleBuilder} instance
-     * @see #setFillBackgroundColor(Color)
-     * @see Colors
-     * @see HSSFColor
-     * @see XSSFColor
+     * @see #setFillBackgroundColor(IndexedColors)
      */
-    public StyleBuilder setFillForegroundColor(final Color color) {
+    public StyleBuilder setFillForegroundColor(final IndexedColors color) {
         checkNotNull(color, "color == null");
-        if (color instanceof XSSFColor) {
-            checkArgument(style instanceof XSSFCellStyle, "XSSFColor is not compatible with %s", style.getClass().getSimpleName());
-            ((XSSFCellStyle) style).setFillForegroundColor((XSSFColor) color);
-        } else
-            style.setFillForegroundColor(Colors.getIndex(color));
+        this.fillForegroundColor = color;
         return this;
     }
 
     /**
      * Sets the fill pattern of the cell.
+     * <p>
+     * This method works in concert with {@link #setFillBackgroundColor(IndexedColors)} and
+     * {@link #setFillForegroundColor(IndexedColors)} to produce the desired results.
      * 
      * @param fp the fill pattern
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setFillPattern(final FillPatternType fp) {
         checkNotNull(fp, "fp == null");
-        style.setFillPattern(fp);
+        this.fillPattern = fp;
         return this;
     }
 
     /**
-     * Sets the font for this style.
+     * Sets the {@link #setFillForegroundColor(IndexedColors) foreground} fill color and
+     * {@link #setFillPattern(FillPatternType) applies} a {@link FillPatternType#SOLID_FOREGROUND solid foreground} fill
+     * pattern.
      * 
-     * @param font the specified font
-     * 
+     * @param color the color to set
      * @return this {@code StyleBuilder} instance
-     * @see Workbook#createFont()
-     * @see Workbook#getFontAt(short)
-     * @see CellStyle#getFontIndex()
      */
-    public StyleBuilder setFont(final Font font) {
-        style.setFont(font);
+    public StyleBuilder setSolidFillColor(final IndexedColors color) {
+        checkNotNull(color, "color == null");
+        this.fillForegroundColor = color;
+        this.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         return this;
     }
+
+//    /**
+//     * Sets the font for this style.
+//     * 
+//     * @param font the specified font
+//     * 
+//     * @return this {@code StyleBuilder} instance
+//     * @see Workbook#createFont()
+//     * @see Workbook#getFontAt(short)
+//     * @see CellStyle#getFontIndex()
+//     */
+//    public StyleBuilder setFont(final Font font) {
+//        checkNotNull(font, "font == null");
+//        this.font = font;
+//        return this;
+//    }
 
     /**
      * Sets the cells using this style to be hidden.
@@ -304,7 +351,7 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setHidden(final boolean hidden) {
-        style.setHidden(hidden);
+        this.hidden = hidden;
         return this;
     }
 
@@ -315,7 +362,7 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setIndention(final short indent) {
-        style.setIndention(indent);
+        this.indention = indent;
         return this;
     }
 
@@ -326,7 +373,7 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setLocked(final boolean locked) {
-        style.setLocked(locked);
+        this.locked = locked;
         return this;
     }
 
@@ -339,7 +386,7 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setQuotePrefixed(final boolean treatAsText) {
-        style.setQuotePrefixed(treatAsText);
+        this.quotePrefixed = treatAsText;
         return this;
     }
 
@@ -353,7 +400,7 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setRotation(final short rotation) {
-        style.setRotation(rotation);
+        this.rotation = rotation;
         return this;
     }
 
@@ -364,7 +411,7 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setShrinkToFit(final boolean shrinkToFit) {
-        style.setShrinkToFit(shrinkToFit);
+        this.shrinkToFit = shrinkToFit;
         return this;
     }
 
@@ -375,8 +422,8 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setVerticalAlignment(final VerticalAlignment align) {
-        checkNotNull(align, "alight == null");
-        style.setVerticalAlignment(align);
+        checkNotNull(align, "align == null");
+        this.verticalAlignment = align;
         return this;
     }
 
@@ -388,44 +435,129 @@ public final class StyleBuilder {
      * @return this {@code StyleBuilder} instance
      */
     public StyleBuilder setWrapText(final boolean wrapped) {
-        style.setWrapText(wrapped);
+        this.wrapText = wrapped;
         return this;
     }
 
-    private StyleBuilder setBorderColor(final BorderSide side, final short index) {
-        switch (side) {
-        case TOP:
-            style.setTopBorderColor(index);
-            break;
-        case BOTTOM:
-            style.setBottomBorderColor(index);
-            break;
-        case LEFT:
-            style.setLeftBorderColor(index);
-            break;
-        case RIGHT:
-            style.setRightBorderColor(index);
-            break;
-        }
-        return this;
+    private void applyToStyle(final CellStyle style) {
+        if (horizontalAlignment != null)
+            style.setAlignment(horizontalAlignment);
+
+        if (topBorder != null)
+            style.setBorderTop(topBorder);
+        if (bottomBorder != null)
+            style.setBorderBottom(bottomBorder);
+        if (leftBorder != null)
+            style.setBorderLeft(leftBorder);
+        if (rightBorder != null)
+            style.setBorderRight(rightBorder);
+
+        // Apply border colors
+        if (topBorderColor != null)
+            applyBorderColor(style, BorderSide.TOP, topBorderColor);
+        if (bottomBorderColor != null)
+            applyBorderColor(style, BorderSide.BOTTOM, bottomBorderColor);
+        if (leftBorderColor != null)
+            applyBorderColor(style, BorderSide.LEFT, leftBorderColor);
+        if (rightBorderColor != null)
+            applyBorderColor(style, BorderSide.RIGHT, rightBorderColor);
+
+        if (dataFormat != null)
+            style.setDataFormat(dataFormat);
+
+        // Apply fill styles
+        if (fillForegroundColor != null)
+            applyFillForegroundColor(style, fillForegroundColor);
+        if (fillBackgroundColor != null)
+            applyFillBackgroundColor(style, fillBackgroundColor);
+        if (fillPattern != null)
+            style.setFillPattern(fillPattern);
+
+        if (font != null)
+            style.setFont(font);
+        if (hidden != null)
+            style.setHidden(hidden);
+        if (indention != null)
+            style.setIndention(indention);
+        if (locked != null)
+            style.setLocked(locked);
+        if (quotePrefixed != null)
+            style.setQuotePrefixed(quotePrefixed);
+        if (rotation != null)
+            style.setRotation(rotation);
+        if (shrinkToFit != null)
+            style.setShrinkToFit(shrinkToFit);
+        if (verticalAlignment != null)
+            style.setVerticalAlignment(verticalAlignment);
+        if (wrapText != null)
+            style.setWrapText(wrapText);
     }
 
-    private StyleBuilder setBorderColor(final BorderSide side, final XSSFColor color) {
-        switch (side) {
-        case TOP:
-            ((XSSFCellStyle) style).setTopBorderColor(color);
-            break;
-        case BOTTOM:
-            ((XSSFCellStyle) style).setBottomBorderColor(color);
-            break;
-        case LEFT:
-            ((XSSFCellStyle) style).setLeftBorderColor(color);
-            break;
-        case RIGHT:
-            ((XSSFCellStyle) style).setRightBorderColor(color);
-            break;
-        }
-        return this;
+    /**
+     * Returns a new {@code StyleBuilder} instance populated with the current properties of {@code this}
+     * {@code StyleBuilder}.
+     * 
+     * @return a new {@code StyleBuilder} instance populated with the current properties of {@code this}
+     *         {@code StyleBuilder}
+     */
+    public StyleBuilder newStyleBuilder() {
+        final StyleBuilder builder = new StyleBuilder();
+
+        // Border styles
+        builder.topBorder    = topBorder;
+        builder.bottomBorder = bottomBorder;
+        builder.leftBorder   = leftBorder;
+        builder.rightBorder  = rightBorder;
+
+        // Border colors
+        builder.topBorderColor    = topBorderColor;
+        builder.bottomBorderColor = bottomBorderColor;
+        builder.leftBorderColor   = leftBorderColor;
+        builder.rightBorderColor  = rightBorderColor;
+
+        // Data format
+        builder.dataFormat = dataFormat;
+
+        // Fill colors and pattern
+        builder.fillBackgroundColor = fillBackgroundColor;
+        builder.fillForegroundColor = fillForegroundColor;
+        builder.fillPattern         = fillPattern;
+
+        // Font
+        builder.font = font;
+
+        // Cell alignment
+        builder.horizontalAlignment = horizontalAlignment;
+        builder.verticalAlignment   = verticalAlignment;
+
+        // Cell properties
+        builder.hidden        = hidden;
+        builder.indention     = indention;
+        builder.locked        = locked;
+        builder.quotePrefixed = quotePrefixed;
+        builder.rotation      = rotation;
+        builder.shrinkToFit   = shrinkToFit;
+        builder.wrapText      = wrapText;
+
+        return builder;
+    }
+
+    private void applyBorderColor(final CellStyle style, final BorderSide side, final IndexedColors color) {
+        if (color == null)
+            return;
+
+        style.setTopBorderColor(color.getIndex());
+        style.setBottomBorderColor(color.getIndex());
+        style.setLeftBorderColor(color.getIndex());
+        style.setRightBorderColor(color.getIndex());
+    }
+
+    private void applyFillForegroundColor(final CellStyle style, final IndexedColors color) {
+        style.setFillForegroundColor(color.getIndex());
+    }
+
+    private void applyFillBackgroundColor(final CellStyle style, final IndexedColors color) {
+        style.setFillBackgroundColor(color.getIndex());
     }
 
 }

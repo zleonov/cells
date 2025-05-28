@@ -1,35 +1,37 @@
 package software.leonov.cells.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.poi.hssf.util.HSSFColor;
-import org.apache.poi.ss.usermodel.Color;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.FontUnderline;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFColor;
-import org.apache.poi.xssf.usermodel.XSSFFont;
 
 /**
  * A builder of {@link Font}s.
  * <p>
  * Example:
- * <p>
  * 
  * <pre>
  *   import static org.apache.poi.ss.usermodel.IndexedColors.*;
  *   import static org.apache.poi.ss.usermodel.Font.*;
  *   
- *   final FontBuilder builder = new FontBuilder(workbook).setUnderline(DOUBLE).setItalic(true);
+ *   // Create a new fonts
  *   
- *   final Font underlinedItalic     = builder.build();
- *   final Font underlinedItalicBold = builder.setBold(true).build();
- *   final Font strikeoutItalic      = builder.setStrikeout(true).setBold(false).build();
+ *   final FontBuilder builder = new FontBuilder();
+ *   
+ *   final Font underlinedItalic     = builder.setUnderline(DOUBLE).setItalic(true).create(workbook);
+ *   final Font underlinedItalicBold = builder.setBold(true).create(workbook);
+ *   
+ *   // Update an existing font
+ *   
+ *   Font font = workbook.createFont();
+ *   ...   
+ *   new FontBuilder().setStrikeout(true).setBold(false).update(font);
  * </pre>
  * 
- * Builder instances are reusable. It is safe to call {@link #build()} multiple times to obtain multiple {@code Font}
- * instances.
+ * Builder instances are reusable. It maintains its own state and can create or update multiple {@code Font} instances
+ * across different workbooks.
  * <p>
  * <b>Note:</b> A workbook can store a finite number of fonts. Be careful not to create identical instances. Fonts
  * should be reused whenever possible.
@@ -38,43 +40,75 @@ import org.apache.poi.xssf.usermodel.XSSFFont;
  */
 public final class FontBuilder {
 
-    private final Font font;
-    private final Workbook workbook;
+    private Boolean bold    = null;
+    private Integer charset = null;
+
+    private IndexedColors color = null;
+
+    private Short   fontHeight         = null;
+    private Short   fontHeightInPoints = null;
+    private String  fontName           = null;
+    private Boolean italic             = null;
+    private Boolean strikeout          = null;
+    private Short   typeOffset         = null;
+    private Byte    underline          = null;
 
     /**
-     * Creates a new {@code FontBuilder} using the specified workbook.
-     * 
-     * @param workbook the workbook where the {@code Font} returned by this builder will reside
+     * Creates a new {@code FontBuilder} with no default settings.
      */
-    public FontBuilder(final Workbook workbook) {
-        checkNotNull(workbook, "workbook == null");
-        this.workbook = workbook;
-        this.font = workbook.createFont();
+    public FontBuilder() {
     }
 
     /**
-     * Creates a new {@code FontBuilder} initialized with the specified font.
+     * Creates a new {@code Font} in the provided workbook based on the current settings.
      * 
-     * @param workbook the workbook where the font returned by this builder will reside
-     * @param font     the base font to start with
+     * @param workbook the workbook where the font will be created
+     * @return a newly-created {@code Font}
      */
-    public FontBuilder(final Workbook workbook, final Font font) {
-        checkNotNull(font, "font == null");
+    public Font create(final Workbook workbook) {
         checkNotNull(workbook, "workbook == null");
-        this.workbook = workbook;
-        this.font = workbook.createFont();
-        copy(font, this.font);
-    }
-
-    /**
-     * Returns a newly-created {@code Font} based on the contents of this builder.
-     * 
-     * @return a newly-created {@code Font} based on the contents of this builder
-     */
-    public Font build() {
-        Font newFont = workbook.createFont();
-        copy(font, newFont);
+        final Font font = workbook.createFont();
+        applyToFont(font);
         return font;
+    }
+
+    /**
+     * Creates a new {@code Font} in the provided workbook, initialized with the properties of the provided font, and then
+     * updated with the current builder settings.
+     * 
+     * @param workbook the workbook where the font will be created
+     * @param baseFont the font to use as a base
+     * @return the newly-created {@code Font}
+     */
+    public Font create(final Workbook workbook, final Font baseFont) {
+        checkNotNull(workbook, "workbook == null");
+        checkNotNull(baseFont, "baseFont == null");
+
+        final Font font = workbook.createFont();
+
+        font.setBold(baseFont.getBold());
+        font.setCharSet(baseFont.getCharSet());
+        font.setColor(baseFont.getColor());
+        font.setFontHeight(baseFont.getFontHeight());
+        font.setFontHeightInPoints(baseFont.getFontHeightInPoints());
+        font.setFontName(baseFont.getFontName());
+        font.setItalic(baseFont.getItalic());
+        font.setStrikeout(baseFont.getStrikeout());
+        font.setTypeOffset(baseFont.getTypeOffset());
+        font.setUnderline(baseFont.getUnderline());
+
+        applyToFont(font);
+        return font;
+    }
+
+    /**
+     * Updates the provided font with the current builder settings.
+     * 
+     * @param font the font to update
+     */
+    public void update(final Font font) {
+        checkNotNull(font, "font == null");
+        applyToFont(font);
     }
 
     /**
@@ -84,7 +118,7 @@ public final class FontBuilder {
      * @return this {@code FontBuilder} instance
      */
     public FontBuilder setBold(final boolean bold) {
-        font.setBold(bold);
+        this.bold = bold;
         return this;
     }
 
@@ -97,8 +131,8 @@ public final class FontBuilder {
      * @see Font#DEFAULT_CHARSET
      * @see Font#SYMBOL_CHARSET
      */
-    public FontBuilder setCharSet(final int charset) { // what about XSSFFont.setCharSet(FontCharset)
-        font.setCharSet(charset);
+    public FontBuilder setCharSet(final int charset) {
+        this.charset = charset;
         return this;
     }
 
@@ -107,17 +141,10 @@ public final class FontBuilder {
      * 
      * @param color the color to set
      * @return this {@code FontBuilder} instance
-     * @see HSSFColor
-     * @see XSSFColor
      */
-    public FontBuilder setColor(final Color color) {
+    public FontBuilder setColor(final IndexedColors color) {
         checkNotNull(color, "color == null");
-
-        if (color instanceof XSSFColor) {
-            checkArgument(font instanceof XSSFFont, "XSSFColor is not compatible with %s", font.getClass().getSimpleName());
-            ((XSSFFont) font).setColor((XSSFColor) color);
-        } else
-            font.setColor(Colors.getIndex(color));
+        this.color = color;
         return this;
     }
 
@@ -128,7 +155,7 @@ public final class FontBuilder {
      * @return this {@code FontBuilder} instance
      */
     public FontBuilder setFontHeight(final short height) {
-        font.setFontHeight(height);
+        this.fontHeight = height;
         return this;
     }
 
@@ -139,7 +166,7 @@ public final class FontBuilder {
      * @return this {@code FontBuilder} instance
      */
     public FontBuilder setFontHeightInPoints(final short height) {
-        font.setFontHeightInPoints(height);
+        this.fontHeightInPoints = height;
         return this;
     }
 
@@ -147,12 +174,12 @@ public final class FontBuilder {
      * Set the name of the font (e.g. Arial, Times New Roman). Use {@link CommonFont#getFontName()} for common cross
      * platform fonts.
      * 
-     * @param font the name of the font to use
+     * @param fontName the name of the font to use
      * @return this {@code FontBuilder} instance
      */
-    public FontBuilder setFontName(final String font) {
-        checkNotNull(font, "font == null");
-        this.font.setFontName(font);
+    public FontBuilder setFontName(final String fontName) {
+        checkNotNull(fontName, "fontName == null");
+        this.fontName = fontName;
         return this;
     }
 
@@ -163,7 +190,7 @@ public final class FontBuilder {
      * @return this {@code FontBuilder} instance
      */
     public FontBuilder setItalic(final boolean italic) {
-        font.setItalic(italic);
+        this.italic = italic;
         return this;
     }
 
@@ -174,7 +201,7 @@ public final class FontBuilder {
      * @return this {@code FontBuilder} instance
      */
     public FontBuilder setStrikeout(final boolean strikeout) {
-        font.setStrikeout(strikeout);
+        this.strikeout = strikeout;
         return this;
     }
 
@@ -188,7 +215,8 @@ public final class FontBuilder {
      * @see Font#SS_SUB
      */
     public FontBuilder setTypeOffset(final TypeOffset offset) {
-        font.setTypeOffset(offset.getShortValue());
+        checkNotNull(offset, "offset == null");
+        this.typeOffset = offset.getShortValue();
         return this;
     }
 
@@ -200,21 +228,76 @@ public final class FontBuilder {
      */
     public FontBuilder setUnderline(final FontUnderline underline) {
         checkNotNull(underline, "underline == null");
-        font.setUnderline(underline.getByteValue());
+        this.underline = underline.getByteValue();
         return this;
     }
 
-    private void copy(final Font from, final Font to) {
-        to.setBold(from.getBold());
-        to.setCharSet(from.getCharSet());
-        to.setColor(from.getColor());
-        to.setFontHeight(from.getFontHeight());
-        to.setFontHeightInPoints(from.getFontHeightInPoints());
-        to.setFontName(from.getFontName());
-        to.setItalic(from.getItalic());
-        to.setStrikeout(from.getStrikeout());
-        to.setTypeOffset(from.getTypeOffset());
-        to.setUnderline(from.getUnderline());
+    /**
+     * Clears all settings from this builder, returning it to its initial state.
+     * 
+     * @return this {@code FontBuilder} instance
+     */
+    public FontBuilder clear() {
+        this.bold               = null;
+        this.charset            = null;
+        this.color              = null;
+        this.fontHeight         = null;
+        this.fontHeightInPoints = null;
+        this.fontName           = null;
+        this.italic             = null;
+        this.strikeout          = null;
+        this.typeOffset         = null;
+        this.underline          = null;
+        return this;
+    }
+
+    /**
+     * Returns a new {@code FontBuilder} instance populated with the current properties of {@code this} {@code FontBuilder}.
+     * 
+     * @return a new {@code FontBuilder} instance populated with the current properties of {@code this} {@code FontBuilder}
+     */
+    public FontBuilder newFontBuilder() {
+        final FontBuilder builder = new FontBuilder();
+
+        builder.bold               = bold;
+        builder.charset            = charset;
+        builder.color              = color;
+        builder.fontHeight         = fontHeight;
+        builder.fontHeightInPoints = fontHeightInPoints;
+        builder.fontName           = fontName;
+        builder.italic             = italic;
+        builder.strikeout          = strikeout;
+        builder.typeOffset         = typeOffset;
+        builder.underline          = underline;
+
+        return builder;
+    }
+
+    private void applyToFont(final Font font) {
+        if (bold != null)
+            font.setBold(bold);
+        if (charset != null)
+            font.setCharSet(charset);
+        if (color != null)
+            setColor(font, color);
+        if (fontHeight != null)
+            font.setFontHeight(fontHeight);
+        if (fontHeightInPoints != null)
+            font.setFontHeightInPoints(fontHeightInPoints);
+        if (fontName != null)
+            font.setFontName(fontName);
+        if (italic != null)
+            font.setItalic(italic);
+        if (strikeout != null)
+            font.setStrikeout(strikeout);
+        if (typeOffset != null)
+            font.setTypeOffset(typeOffset);
+        if (underline != null)
+            font.setUnderline(underline);
+    }
+
+    private static void setColor(final Font font, final IndexedColors color) {
+        font.setColor(color.getIndex());
     }
 
 }

@@ -2,23 +2,28 @@ package software.leonov.cells;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static software.leonov.common.base.Str.isWhitespace;
+import static org.apache.poi.ss.util.CellReference.convertColStringToIndex;
+import static software.leonov.cells.Sheets.getColumnStyle;
+import static software.leonov.common.base.Obj.coalesce;
 
+import java.time.LocalDateTime;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Iterator;
 import java.util.Optional;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.RichTextString;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.util.CellReference;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 
-import software.leonov.common.base.Obj;
+import software.leonov.common.base.Str;
 
 /**
  * Static methods for working with {@link Row}s.
@@ -33,40 +38,37 @@ public final class Rows {
     /**
      * Returns the specified cell or {@code null} if the cell is undefined.
      * 
-     * @param row    the row where the cell is located
-     * @param column the 0-based column number
+     * @param row   the row where the cell is located
+     * @param index the 0-based column index
      * @return the specified cell or {@code null}
      */
-    public static Cell getCell(final Row row, final int column) {
+    public static Cell getCell(final Row row, final int index) {
         checkNotNull(row, "row == null");
-        checkArgument(column >= 0, "column index < 0");
-        return row.getCell(column);
+        checkArgument(index >= 0, "index < 0");
+        return row.getCell(index);
     }
 
     /**
      * Returns the specified cell or {@code null} if the cell is undefined.
      * 
-     * @param row the row where the cell is located
-     * @param ref the letter reference of the column
+     * @param row    the row where the cell is located
+     * @param colref the letter reference of the column
      * @return the specified cell or {@code null}
      */
-    public static Cell getCell(final Row row, final String ref) {
+    public static Cell getCell(final Row row, final String colref) {
         checkNotNull(row, "row == null");
-        checkNotNull(ref, "ref == null");
-        return row.getCell(CellReference.convertColStringToIndex(ref));
+        checkNotNull(colref, "colref == null");
+        return row.getCell(convertColStringToIndex(colref));
     }
 
     /**
      * Returns the specified cell. If the cell does not exist it is created.
      * <p>
-     * The cell-style will be inherited from the default column style. If the default column style is undefined the
-     * cell-style will be inherited from the default row style. If neither are defined it will have a {@link CellType#BLANK}
-     * style.
+     * The cell-style will be inherited from default styles in the following order: the row column, then the default column
+     * style, and finally the default workbook style.
      * 
      * @param row   the row where the cell is located
      * @param index the 0-based column index
-     * @see Sheet#getColumnStyle(int)
-     * @see Row#getRowStyle()
      * @return the specified cell
      */
     public static Cell getOrCreateCell(final Row row, final int index) {
@@ -77,10 +79,9 @@ public final class Rows {
 
         if (cell == null) {
             cell = row.createCell(index);
-            final CellStyle style = Obj.coalesce(row.getSheet().getColumnStyle(index), row.getRowStyle());
+            final CellStyle style = coalesce(getRowStyle(row), getColumnStyle(getSheetOf(row), index));
             if (style != null)
                 cell.setCellStyle(style);
-            row.setHeightInPoints(row.getHeightInPoints());
         }
 
         return cell;
@@ -88,16 +89,30 @@ public final class Rows {
 
     /**
      * Returns the specified cell. If the cell does not exist it is created.
+     * <p>
+     * The cell-style will be inherited from default styles in the following order: the row column, then the default column
+     * style, and finally the default workbook style.
      * 
      * @param row    the row where the cell is located
-     * @param column the letter reference of the column
+     * @param colref the letter reference of the column
      * @return the specified cell
      */
-    public static Cell getOrCreateCell(final Row row, final String ref) {
+    public static Cell getOrCreateCell(final Row row, final String colref) {
         checkNotNull(row, "row == null");
-        checkNotNull(ref, "ref == null");
-        final int index = CellReference.convertColStringToIndex(ref);
+        checkNotNull(colref, "colref == null");
+        final int index = convertColStringToIndex(colref);
         return getOrCreateCell(row, index);
+    }
+
+    /**
+     * Returns the row style for the given row or {@code null} if no style is set.
+     * 
+     * @param row the specified row
+     * @return the row style for the given row or {@code null}
+     */
+    public static CellStyle getRowStyle(final Row row) {
+        checkNotNull(row, "row == null");
+        return row.getRowStyle();
     }
 
     /**
@@ -111,104 +126,6 @@ public final class Rows {
         checkNotNull(row, "row == null");
         return row.getSheet();
     }
-
-//    /**
-//     * Sets a value for a cell in the specified row.
-//     * <p>
-//     * Unlike {@link Cells#setValue(Cell, Object)} this method is {@code null} safe. If {@code value} is {@code null}, an
-//     * empty string, or a string composed exclusively of whitespace characters according to {@link CharMatcher#WHITESPACE},
-//     * this method will delete the specified cell if it exists (to insert such a string consider using
-//     * {@link Cell#setCellValue(String)}).
-//     * <p>
-//     * If {@code value} is a {@link Number} the cell value will be set to the {@code double} value of the number by first
-//     * calling {@link Number#doubleValue()} followed by {@link Cell#setCellValue(double)}.
-//     * <p>
-//     * If {@code value} is a {@code Boolean}, {@link Calendar}, {@link Date}, or {@link RichTextString} the cell value will
-//     * be set by calling {@link Cell#setCellValue(boolean)}, {@link Cell#setCellValue(Calendar)},
-//     * {@link Cell#setCellValue(Date)}, or {@link Cell#setCellValue(RichTextString)} accordingly.
-//     * <p>
-//     * For all other types the cell will be set to {@code value.toString()}.
-//     * 
-//     * @param row    the row where the cell is located
-//     * @param column the letter reference of the column
-//     * @param value  the value to set
-//     * @return the specified row
-//     * @throws IllegalArgumentException if the value to set is a string which exceeds 32767 characters
-//     */
-//    public static Row setCellValue(final Row row, final String column, final Object value) {
-//        checkNotNull(row, "row == null");
-//        checkNotNull(column, "column == null");
-//        return setCellValue(row, Cells.getIndex(column), value);
-//    }
-//
-//    /**
-//     * Sets a value for a cell in the specified row.
-//     * <p>
-//     * Unlike {@link Cells#setValue(Cell, Object)} this method is {@code null} safe. If {@code value} is {@code null}, an
-//     * empty string, or a string composed exclusively of whitespace characters according to {@link CharMatcher#WHITESPACE},
-//     * this method will delete the specified cell if it exists (to insert such a string consider using
-//     * {@link Cell#setCellValue(String)}).
-//     * <p>
-//     * If {@code value} is a {@link Number} the cell value will be set to the {@code double} value of the number by first
-//     * calling {@link Number#doubleValue()} followed by {@link Cell#setCellValue(double)}.
-//     * <p>
-//     * If {@code value} is a {@code Boolean}, {@link Calendar}, {@link Date}, or {@link RichTextString} the cell value will
-//     * be set by calling {@link Cell#setCellValue(boolean)}, {@link Cell#setCellValue(Calendar)},
-//     * {@link Cell#setCellValue(Date)}, or {@link Cell#setCellValue(RichTextString)} accordingly.
-//     * <p>
-//     * For all other types the cell will be set to {@code value.toString()}.
-//     * 
-//     * @param row    the row where the cell is located
-//     * @param column the 0-based column number
-//     * @param value  the value to set
-//     * @return the specified row
-//     * @throws IllegalArgumentException if the value to set is a string which exceeds 32767 characters
-//     */
-//    public static Row setCellValue(final Row row, final int column, final Object value) {
-//        checkNotNull(row, "row == null");
-//        checkArgument(column >= 0, "column < 0");
-//
-//        Cell cell = row.getCell(column);
-//
-//        if (value == null || isWhitespace(value.toString())) {
-//            if (cell != null)
-//                row.removeCell(cell);
-//            return row;
-//        }
-//
-//        if (cell == null)
-//            cell = getOrCreateCell(row, column);
-//
-//        if (value instanceof Boolean) {
-//            cell.setCellValue((Boolean) value);
-//            checkArgument(cell.getCellType() == CellType.BOOLEAN && Objects.equal(cell.getBooleanCellValue(), value),
-//                    "cannot update cell value: this error may occur when trying to update a cell in a document previously written in Format.STREAMING_OFFICE_OPEN_XML");
-//        } else if (value instanceof Calendar) {
-//            cell.setCellValue((Calendar) value);
-//            checkArgument(cell.getCellType() == CellType.NUMERIC && Objects.equal(cell.getNumericCellValue(), ((Calendar) value).getTime()),
-//                    "cannot update cell value: this error may occur when trying to update a cell in a document previously written in Format.STREAMING_OFFICE_OPEN_XML");
-//        } else if (value instanceof Date) {
-//            cell.setCellValue((Date) value);
-//            checkArgument(cell.getCellType() == CellType.NUMERIC && Objects.equal(cell.getDateCellValue(), value),
-//                    "cannot update cell value: this error may occur when trying to update a cell in a document previously written in Format.STREAMING_OFFICE_OPEN_XML");
-//        } else if (value instanceof Number) {
-//            cell.setCellValue(((Number) value).doubleValue());
-//            checkArgument(cell.getCellType() == CellType.NUMERIC && Objects.equal(cell.getNumericCellValue(), ((Number) value).doubleValue()),
-//                    "cannot update cell value: this error may occur when trying to update a cell in a document previously written in Format.STREAMING_OFFICE_OPEN_XML");
-//        } else if (value instanceof RichTextString) {
-//            cell.setCellValue((RichTextString) value);
-//            checkArgument(cell.getCellType() == CellType.NUMERIC && Objects.equal(cell.getRichStringCellValue(), value),
-//                    "cannot update cell value: this error may occur when trying to update a cell in a document previously written in Format.STREAMING_OFFICE_OPEN_XML");
-//        } else {
-//            final String string = value.toString();
-//            checkArgument(string.length() <= 32767, "length > 32767 characters for value: %s", truncate(string, 500, "..."));
-//            cell.setCellValue(string);
-//            checkArgument(cell.getCellType() == Cell.CELL_TYPE_STRING && Objects.equal(cell.getStringCellValue(), string),
-//                    "cannot update cell value: this error may occur when trying to update a cell in a document previously written in Format.STREAMING_OFFICE_OPEN_XML");
-//        }
-//
-//        return row;
-//    }
 
     /**
      * Returns the workbook that contains the specified row. If the row has been deleted this method will result in an
@@ -229,7 +146,7 @@ public final class Rows {
      * @param height the height to set, in points
      * @return the specified row
      */
-    public static Row setRowHeight(final Row row, final float height) {
+    public static Row setHeight(final Row row, final float height) {
         checkNotNull(row, "row == null");
         checkArgument(height > 0, "height < 1");
         row.setHeightInPoints(height);
@@ -237,16 +154,29 @@ public final class Rows {
     }
 
     /**
-     * Applies the cell-style to future and existing cells in the specified row.
+     * Applies a cell-style to future and existing cells in the specified row.
      * 
      * @param row   the row to apply the cell-style to
      * @param style the specified cell-style
      * @return the affected row
      */
     public static Row setStyle(final Row row, final CellStyle style) {
+        return setStyle(row, style, true);
+    }
+
+    /**
+     * Applies a cell-style to the specified row.
+     * 
+     * @param row    the row to apply the cell-style to
+     * @param style  the specified cell-style
+     * @param update whether or not to update existing cells
+     * @return the affected row
+     */
+    public static Row setStyle(final Row row, final CellStyle style, final boolean update) {
         checkNotNull(row, "row == null");
         checkNotNull(style, "style == null");
-        Streams.stream(row).forEach(cell -> Cells.setStyle(cell, style));
+        if (update)
+            Streams.stream(row).forEach(cell -> Cells.setStyle(cell, style));
         row.setRowStyle(style);
         return row;
     }
@@ -262,20 +192,123 @@ public final class Rows {
      */
     public static Iterable<Cell> skipBlankCells(final Row row) {
         checkNotNull(row, "row == null");
-        return Iterables.filter(row, cell -> !isWhitespace(Cells.formatValue(cell)));
+        return Iterables.filter(row, cell -> Cells.formatValue(cell) != null);
     }
 
     /**
-     * Returns the 1-based index of the last cell in the specified row or an empty {@code Optional} if the row has no
+     * Returns the index (0-based) of the first cell in the specified row or an empty {@code Optional} if the row has no
      * defined cells.
      * 
      * @param row the specified row
-     * @return the 1-based index of the last cell in the specified row or an empty {@code Optional} if the row has no
-     *         defined cells
+     * @return index (0-based) of the first cell in the specified row or an empty {@code Optional} if the row has no defined
+     *         cells
+     */
+    public static Optional<Integer> getFirstCellIndex(final Row row) {
+        checkNotNull(row, "row == null");
+        final int i = row.getFirstCellNum();
+        return i < 0 ? Optional.empty() : Optional.of(i);
+    }
+
+    /**
+     * Returns the index (0-based) of the last cell in the specified row or an empty {@code Optional} if the row has no
+     * defined cells.
+     * 
+     * @param row the specified row
+     * @return index (0-based) of the last cell in the specified row or an empty {@code Optional} if the row has no defined
+     *         cells
      */
     public static Optional<Integer> getLastCellIndex(final Row row) {
         checkNotNull(row, "row == null");
         final int i = row.getLastCellNum();
-        return i == -1 ? Optional.empty() : Optional.of(i);
+        return i < 0 ? Optional.empty() : Optional.of(i - 1);
     }
+
+    /**
+     * Sets a sequence of values in the given row, beginning at the specified cell.
+     *
+     * Any non-existent cells within the range are created. The values are set by calling
+     * {@link Cells#setValue(Cell, Object)}.
+     * 
+     * @param row    the specified row
+     * @param index  the 0-based index of the starting cell
+     * @param values the values to set
+     * @return the specified row
+     */
+    public static Row setValues(final Row row, int index, final Iterable<? extends Object> values) {
+        checkNotNull(row, "row == null");
+        checkNotNull(values, "values == null");
+        checkArgument(index >= 0, "index < 0");
+
+        final Iterator<? extends Object> itor = values.iterator();
+
+        for (final Object value : values) {
+            final Cell cell = getCell(row, index);
+            if (itor.hasNext() && cell != null && isBlank(value))
+                row.removeCell(cell);
+            else
+                Cells.setValue(getOrCreateCell(row, index++), value);
+        }
+
+        return row;
+    }
+
+    private static boolean isBlank(final Object value) {
+        if (value == null)
+            return true;
+        if (value instanceof Boolean || value instanceof Calendar || value instanceof Date || value instanceof Number || value instanceof LocalDateTime || value instanceof RichTextString)
+            return false;
+        else
+            return Str.isWhitespace(value.toString());
+    }
+
+    /**
+     * Sets a sequence of values in the given row, beginning at the specified cell.
+     *
+     * Any non-existent cells within the range are created. The values are set by calling
+     * {@link Cells#setValue(Cell, Object)}.
+     * 
+     * @param row    the specified row
+     * @param colref the letter reference of the starting cell
+     * @param values the values to set
+     * @return the specified row
+     */
+    public static Row setValues(final Row row, final String colref, final Iterable<? extends Object> values) {
+        checkNotNull(colref, "colref == null");
+        return setValues(row, convertColStringToIndex(colref), values);
+    }
+
+    /**
+     * Creates and returns the next available cell in the specified row.
+     * 
+     * @param row the specified row
+     * @return the next available cell
+     */
+    public static Cell createNextCell(final Row row) {
+        checkNotNull(row, "row == null");
+        final int idx = row.getLastCellNum();
+        return idx == -1 ? getOrCreateCell(row, 0) : getOrCreateCell(row, idx);
+    }
+
+//    /**
+//     * Returns the index (0-based) of the first cell in the specified row.
+//     * 
+//     * @param row the specified row
+//     * @return the index (0-based) of the first cell in the specified row
+//     */
+//    public static int getFirstCellIndex(final Row row) {
+//        checkNotNull(row, "row == null");
+//        return row.getFirstCellNum();
+//    }
+
+//    /**
+//     * Returns the index (0-based) of the last cell in the specified row.
+//     * 
+//     * @param row the specified row
+//     * @return the index (0-based) of the last cell in the specified row
+//     */
+//    public static int getLastCellIndex(final Row row) {
+//        checkNotNull(row, "row == null");
+//        return row.getLastCellNum() - 1;
+//    }
+
 }

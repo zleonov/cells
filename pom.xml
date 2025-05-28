@@ -9,7 +9,8 @@
     <!-- default packaging is a jar <packaging>jar</packaging> -->
 
     <name>jcells</name>
-    <description>This project contains routines which allow Java developers to read and write Microsoft Excel documents in a polymorphic fluent style.</description>
+    <description>This project contains routines which allow Java developers to read and write Microsoft Excel documents
+        in a polymorphic fluent style.</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -44,6 +45,11 @@
             <artifactId>poi-ooxml</artifactId>
             <version>4.1.2</version>
         </dependency>
+        <dependency>
+            <groupId>software.leonov.common</groupId>
+            <artifactId>Quantify</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -69,44 +75,47 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>${maven-javadoc-plugin.version}</version>
-
                 <configuration>
-                    <sourcepath>${project.build.sourceDirectory}</sourcepath>
+                    <sourcepath>${project.build.sourceDirectory}:${java.sourceDirectory}</sourcepath>
                     <subpackages>software.leonov</subpackages>
                     <quiet>false</quiet>
                     <notimestamp>true</notimestamp>
-                    <encoding>UTF-8</encoding>
-                    <docencoding>UTF-8</docencoding>
-                    <charset>UTF-8</charset>
-                    <show>public</show>
-                    <doclint>-html</doclint>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <docencoding>${project.build.sourceEncoding}</docencoding>
+                    <charset>${project.build.sourceEncoding}</charset>
+                    <show>protected</show>
+                    <doclint>reference,missing</doclint>
                     <linksource>true</linksource>
                     <doctitle>
                         <![CDATA[
-                        ${project.name} ${project.version} API
-                        <p>
-                        <div style='font-weight:normal; font-size:smaller'>${project.description}</div>
+                            ${project.name} ${project.version}
+                            <p>
+                            <div style='font-weight:normal; font-size:smaller'>${project.description}</div>
                         ]]>
                     </doctitle>
                     <detectJavaApiLink>true</detectJavaApiLink>
                     <links>
-                        <link>https://google.github.io/guava/releases/26.0-jre/api/docs/</link>
-                        <link>https://poi.apache.org/apidocs/4.1/</link>
+                        <link>https://javadoc.io/doc/com.typesafe/config/1.4.3</link>
                     </links>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>attach-javadocs</id>
                         <goals>
                             <goal>jar</goal>
                         </goals>
+                        <configuration>
+                            <outputDirectory>${project.basedir}/docs/api/latest</outputDirectory>
+                        </configuration>
                     </execution>
                     <execution>
-                        <id>generate-javadoc-site-report</id>
-                        <phase>site</phase>
+                        <id>default-cli</id>
                         <goals>
                             <goal>javadoc</goal>
                         </goals>
+                        <configuration>
+                            <reportOutputDirectory>${project.basedir}/docs/api</reportOutputDirectory>
+                            <destDir>latest</destDir>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -122,5 +131,17 @@
             </plugin>
         </plugins>
     </reporting>
+
+    <repositories>
+        <repository>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+                <checksumPolicy>fail</checksumPolicy>
+            </snapshots>
+            <id>internal-snapshots</id>
+            <url>http://vm2:8081/repository/maven-snapshots/</url>
+        </repository>
+    </repositories>
 
 </project>
